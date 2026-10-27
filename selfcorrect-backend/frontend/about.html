@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How it works · Recursive Multi-Agent Pipeline</title>
+  <meta name="description" content="How the Planner, Executor, Critic and Fixer agents work together." />
+  <meta name="theme-color" content="#0E100E" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <script>document.documentElement.dataset.theme = localStorage.getItem("scmap_theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="about">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="grid-bg" aria-hidden="true"></div>
+  <header class="site-header" id="site-header"></header>
+
+  <main id="main" class="container">
+    <section class="page-hero reveal">
+      <div>
+        <span class="chip"><span class="dot"></span>How it works</span>
+        <h1>Four agents. <span class="gradient-text">One answer you can trust.</span></h1>
+        <p>Instead of trusting the first AI answer, every task is planned, drafted, audited and repaired until it passes review.</p>
+      </div>
+      <div class="hero-actions" id="about-cta"></div>
+    </section>
+
+    <section class="card card-glow reveal" aria-labelledby="demo-title">
+      <div class="section-title"><div><span class="eyebrow">Illustration</span><h2 id="demo-title">The pipeline in motion</h2></div>
+        <button type="button" id="demo-replay" class="btn btn-ghost btn-sm"><i data-icon="refresh" data-size="14"></i><span class="btn-label">Replay</span></button></div>
+      <div id="pipeline"></div>
+    </section>
+
+    <section class="about-grid" aria-label="The four agents">
+      <article class="card about-card reveal"><span class="panel-icon"><i data-icon="plan" data-size="18"></i></span><h3>1 · Planner</h3><p>Breaks your task into short, ordered steps so the Executor does not wander.</p></article>
+      <article class="card about-card reveal"><span class="panel-icon"><i data-icon="exec" data-size="18"></i></span><h3>2 · Executor</h3><p>Writes the first answer, following the plan. This draft is saved as the initial output.</p></article>
+      <article class="card about-card reveal"><span class="panel-icon"><i data-icon="critic" data-size="18"></i></span><h3>3 · Critic</h3><p>Reviews the draft for logic, maths and code errors, and explains every problem it finds.</p></article>
+      <article class="card about-card reveal"><span class="panel-icon"><i data-icon="fix" data-size="18"></i></span><h3>4 · Fixer</h3><p>Rewrites the answer using the Critic's feedback. The Critic then checks it again, up to your iteration limit.</p></article>
+    </section>
+
+    <section class="about-grid two" aria-label="Modes and checks">
+      <article class="card reveal"><span class="eyebrow">Two modes</span><h3>Self-correcting vs Baseline</h3>
+        <p><strong>Self-correcting</strong> runs all four agents in a loop. <strong>Baseline</strong> is a single Executor pass with no planning or review, so you can measure how much self-correction really helps.</p>
+        <a class="btn btn-ghost" href="evaluation.html"><i data-icon="chart" data-size="16"></i><span class="btn-label">See the comparison</span></a></article>
+      <article class="card reveal"><span class="eyebrow">Built-in checks</span><h3>Reliable, repeatable verification</h3>
+        <ul class="check-list">
+          <li><i data-icon="check" data-size="16"></i>Arithmetic is recomputed with a safe evaluator and compared with the answer.</li>
+          <li><i data-icon="check" data-size="16"></i>Python code blocks must be syntactically valid.</li>
+          <li><i data-icon="check" data-size="16"></i>Empty or too-short answers are rejected.</li>
+          <li><i data-icon="check" data-size="16"></i>A language-model Critic reviews logic and facts on top.</li>
+        </ul></article>
+    </section>
+  </main>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/task-view.js"></script>
+  <script src="js/about.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

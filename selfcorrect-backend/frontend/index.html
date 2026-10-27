@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Orchestrator · Recursive Multi-Agent Pipeline</title>
+  <meta name="description" content="Run prompts through a self-correcting Planner, Executor, Critic and Fixer pipeline." />
+  <meta name="theme-color" content="#0E100E" />
+  <script>document.documentElement.dataset.theme = localStorage.getItem("scmap_theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="orchestrator">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="grid-bg" aria-hidden="true"></div>
+  <header class="site-header" id="site-header"></header>
+
+  <main id="main" class="container">
+    <section class="page-hero reveal">
+      <div>
+        <span class="chip"><span class="dot"></span>Orchestrator</span>
+        <h1><span id="greeting">Compose a task.</span><br /><span class="gradient-text">Let the agents correct themselves.</span></h1>
+        <p>Your prompt flows through a Planner, an Executor, and a Critic that audits each draft, with a Fixer that repairs anything it flags.</p>
+      </div>
+    </section>
+
+    <div class="orch-grid">
+      <form id="task-form" class="card card-glow composer reveal" novalidate>
+        <div class="field">
+          <div class="composer-foot">
+            <label for="prompt">Your prompt</label>
+            <span class="char-count" id="char-count" aria-live="polite">0 / 4,000</span>
+          </div>
+          <textarea class="textarea" id="prompt" name="prompt" maxlength="4000" required placeholder="e.g. Write a Python function that returns the nth prime, then explain its time complexity." aria-describedby="prompt-error prompt-help"></textarea>
+          <div class="composer-foot">
+            <span class="field-error" id="prompt-error"></span>
+            <span class="hint" id="prompt-help">5 to 4,000 characters · <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> to run</span>
+          </div>
+        </div>
+
+        <div class="examples" aria-label="Example prompts">
+          <button type="button" class="example" data-example="Write a Python function that checks whether a string is a valid palindrome, ignoring punctuation and case. Include tests.">Code with tests</button>
+          <button type="button" class="example" data-example="A train leaves at 9:40 and travels 210 km at 84 km/h. At what time does it arrive? Show your reasoning step by step.">Math reasoning</button>
+          <button type="button" class="example" data-example="Explain the difference between TCP and UDP for a first-year computer science student, with two real-world examples of each.">Explain a concept</button>
+        </div>
+
+        <fieldset style="border:0;padding:0;margin:0">
+          <legend class="label" style="margin-bottom:8px">Execution mode</legend>
+          <div class="segmented">
+            <input type="radio" id="mode-sc" name="mode" value="self_correcting" checked />
+            <label for="mode-sc"><strong><i data-icon="refresh" data-size="15"></i>Self-correcting</strong><span>All four agents</span></label>
+            <input type="radio" id="mode-base" name="mode" value="baseline" />
+            <label for="mode-base"><strong><i data-icon="exec" data-size="15"></i>Baseline</strong><span>Single pass</span></label>
+          </div>
+        </fieldset>
+        <p class="mode-hint" id="mode-hint" aria-live="polite"></p>
+
+        <div class="iter-wrap" id="iter-wrap">
+          <label class="switch"><input type="checkbox" id="iter-toggle" /> Custom max iterations</label>
+          <div class="range-group">
+            <label for="max-iterations" class="sr-only">Maximum iterations</label>
+            <input type="range" id="max-iterations" min="1" max="5" step="1" value="3" disabled aria-describedby="iter-value" />
+            <span class="iter-value" id="iter-value">3</span>
+          </div>
+        </div>
+
+        <div class="run-row">
+          <button type="submit" id="run-btn" class="btn btn-primary btn-lg"><i data-icon="play" data-size="16"></i><span class="btn-label">Run pipeline</span></button>
+          <span class="elapsed" id="elapsed" aria-live="off" hidden></span>
+        </div>
+      </form>
+
+      <section class="card pipeline-card reveal" aria-labelledby="pipeline-title">
+        <div class="section-title">
+          <div><span class="eyebrow">Live status</span><h2 id="pipeline-title">Agent pipeline</h2></div>
+        </div>
+        <div id="pipeline"></div>
+      </section>
+    </div>
+
+    <section id="results" class="results" aria-label="Pipeline results" hidden></section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/task-view.js"></script>
+  <script src="js/orchestrator.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

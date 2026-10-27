@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>History · Recursive Multi-Agent Pipeline</title>
+  <meta name="description" content="Browse, inspect and manage your past pipeline tasks." />
+  <meta name="theme-color" content="#0E100E" />
+  <script>document.documentElement.dataset.theme = localStorage.getItem("scmap_theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="history">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="grid-bg" aria-hidden="true"></div>
+  <header class="site-header" id="site-header"></header>
+
+  <main id="main" class="container">
+    <section class="page-hero reveal">
+      <div>
+        <span class="chip"><span class="dot"></span>Task history</span>
+        <h1>Every run, <span class="gradient-text">fully traceable.</span></h1>
+        <p>Inspect the plan, drafts, critic verdicts and final answers of each task you have run.</p>
+      </div>
+    </section>
+
+    <div class="toolbar reveal">
+      <div class="filter-group" role="group" aria-label="Filter by mode">
+        <button type="button" class="filter-btn" data-filter="" aria-pressed="true">All</button>
+        <button type="button" class="filter-btn" data-filter="self_correcting" aria-pressed="false">Self-correcting</button>
+        <button type="button" class="filter-btn" data-filter="baseline" aria-pressed="false">Baseline</button>
+      </div>
+      <div class="toolbar-right">
+        <label for="page-size" class="sr-only">Tasks per page</label>
+        <select id="page-size" class="select select-sm">
+          <option value="10" selected>10 per page</option>
+          <option value="20">20 per page</option>
+          <option value="50">50 per page</option>
+        </select>
+        <button type="button" id="refresh-btn" class="btn btn-ghost btn-sm"><i data-icon="refresh" data-size="14"></i><span class="btn-label">Refresh</span></button>
+      </div>
+    </div>
+
+    <div class="history-grid">
+      <section aria-label="Tasks">
+        <ul id="task-list" class="task-list"></ul>
+        <nav class="pager" aria-label="Pagination">
+          <button type="button" id="prev-page" class="btn btn-ghost btn-sm"><i data-icon="chevL" data-size="14"></i><span class="btn-label">Newer</span></button>
+          <span class="pager-info" id="page-info" aria-live="polite">Page 1</span>
+          <button type="button" id="next-page" class="btn btn-ghost btn-sm"><span class="btn-label">Older</span><i data-icon="chevR" data-size="14"></i></button>
+        </nav>
+      </section>
+      <section id="task-detail" class="task-detail" aria-label="Task details" aria-live="polite" hidden></section>
+    </div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/task-view.js"></script>
+  <script src="js/history.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
