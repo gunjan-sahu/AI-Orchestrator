@@ -145,3 +145,18 @@ def test_benchmark_shows_improvement(client, auth):
     assert summary["correction_rate_pct"] == 100.0 and summary["errors_after_correction"] == 0
     assert len(r.json()["results"]) == summary["tasks"]
     assert client.post("/api/evaluation/benchmark").status_code == 401
+
+
+def test_stream_endpoint_emits_real_agent_events_then_result(client, auth):
+    import json
+    with client.stream("POST", "/api/tasks/stream", json={"prompt": "What is 2 + 3 * 4?"}, headers=auth) as r:
+        assert r.status_code == 200
+        lines = [json.loads(x) for x in r.iter_lines() if x]
+    events = [(m["agent"], m["state"]) for m in lines if m["type"] == "event"]
+    assert events[0] == ("planner", "start") and ("critic", "done") in events and ("fixer", "start") in events
+    assert lines[-1]["type"] == "result" and lines[-1]["task"]["final_output"].endswith("14")
+    assert client.get("/api/tasks", headers=auth).json()["total"] >= 1
+
+
+def test_stream_requires_login(client):
+    assert client.post("/api/tasks/stream", json={"prompt": "What is 2 + 3?"}).status_code == 401

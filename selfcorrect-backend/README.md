@@ -34,7 +34,7 @@ A **baseline mode** (one-step AI, no Critic/Fixer) is included so the two approa
 | Database | **SQLite** via **SQLAlchemy 2** | Zero setup — a single file, created automatically. Switching to PostgreSQL only needs a different `DATABASE_URL` |
 | Auth | **JWT** (PyJWT) + PBKDF2-SHA256 password hashing | Standard, stateless, no extra native dependencies |
 | AI models | Anthropic (Claude), any OpenAI-compatible API (OpenAI, Groq, Ollama…) or an **offline mock engine** | Works with or without an API key |
-| Tests | pytest | 38 automated tests |
+| Tests | pytest | 42 automated tests |
 
 ## Project structure
 
@@ -56,8 +56,9 @@ selfcorrect-backend/
 │   └── routers/           # auth.py · tasks.py · evaluation.py
 ├── frontend/              # Web interface (plain HTML/CSS/JS), served at /app
 │   ├── index.html login.html register.html history.html evaluation.html profile.html about.html 404.html
-│   ├── css/style.css      # Design system + animations
-│   └── js/                # api.js (backend client) · app.js · ui.js · per-page scripts
+│   ├── css/synora.css  # Design system: dark/light, glass, aurora, animations
+│   ├── vendor/            # Fonts + KaTeX, bundled locally (works offline)
+│   └── js/                # api.js (backend client) · shell.js (sidebar) · aurora.js · richtext.js · per-page scripts
 ├── tests/                 # pytest suite
 ├── run.py                 # Starts the server
 ├── demo.py                # Command-line demo of the whole flow
@@ -115,7 +116,7 @@ Open **http://127.0.0.1:8000** — the web app (register, run tasks, history, ev
 ### Quick check that everything works
 ```bash
 python check_project.py     # file check
-python -m pytest -q         # 38 tests
+python -m pytest -q         # 42 tests
 python demo.py              # with the server running in another terminal
 ```
 
@@ -123,16 +124,18 @@ python demo.py              # with the server running in another terminal
 
 ## The web interface
 
-Served by the same server — no separate frontend setup, no CORS issues:
+"SYNORA — Think. Verify. Refine." Served by the same server — no separate frontend setup, no CORS issues. All fonts and the math renderer are bundled in `frontend/vendor`, so it works offline.
 
 | Page | URL | What it does |
 |------|-----|--------------|
 | Sign in / Register | `/app/login.html`, `/app/register.html` | Account creation with inline validation |
-| Orchestrator | `/app/index.html` | Run a prompt in *Self-correcting* or *Baseline* mode, see the four agents, every Critic round and the final answer |
-| History | `/app/history.html` | Filter, page through, open and delete past tasks |
-| Evaluation | `/app/evaluation.html` | Your baseline vs self-correcting stats and the built-in benchmark |
-| Profile | `/app/profile.html` | Account, results snapshot, recent tasks, sign out |
-| How it works | `/app/about.html` | Animated explanation of the pipeline (public) |
+| New task | `/app/index.html` | Ask anything. **Verified** = plan → draft → review → fix (slower, more reliable). **Quick** = one direct answer, no review. The answer comes first; the full Planner → Executor → Critic → Fixer trail is in a collapsible *Verification report* |
+| History | `/app/history.html` | Filter, search, open (slide-in panel) and delete past tasks |
+| Insights | `/app/evaluation.html` | Quick vs Verified stats and the built-in benchmark |
+| Profile | `/app/profile.html` | Account, results snapshot, recent tasks |
+| How it works | `/app/about.html` | Public landing page |
+
+Notes: dark/light theme toggle (top right); slim sidebar that expands on hover and can be pinned; math, code and tables in answers are rendered properly. Four animated agent cards (Planner, Executor, Critic, Fixer) light up live. They are driven by REAL events streamed by `POST /api/tasks/stream` as each agent starts and finishes, never a fake timer. The report is open by default under the answer. The sparkle button in the top bar turns animations off/on. Extras: cursor glow on cards, a real progress line under the agent cards, a typing prompt box, a clickable mascot, and an illustrated example run on the landing page. The AI provider/model is kept in the API data and shown only under *Technical details* in the report.
 
 The UI talks to `/api` on the same origin. If you open the HTML files from a different static server instead, they fall back to `http://127.0.0.1:8000/api`.
 

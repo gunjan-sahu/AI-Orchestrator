@@ -114,12 +114,57 @@ async function request(path, { method = "GET", body, auth = true, timeout = TIME
   return data;
 }
 
+// Run a task and receive REAL agent progress events as they happen (newline-delimited JSON stream).
+async function streamTask(payload, onEvent) {
+  const token = Auth.getToken();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUTS.task);
+  let res;
+  try {
+    res = await fetch(API_BASE + "/tasks/stream", { method: "POST", signal: controller.signal, body: JSON.stringify(payload),
+      headers: { "Content-Type": "application/json", Accept: "application/x-ndjson", ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err.name === "AbortError") throw new ApiError("The request timed out.", { status: 0 });
+    throw new ApiError("Cannot reach the server. Make sure the backend is running on port 8000.", { status: 0 });
+  }
+  if (!res.ok || !res.body) {
+    clearTimeout(timer);
+    if (res.ok) return request("/tasks", { method: "POST", body: payload, timeout: TIMEOUTS.task });   // no streaming support: plain call
+    let data = null; try { data = await res.json(); } catch {}
+    if (res.status === 401 && token) { Auth.clear(); sessionStorage.setItem("scmap_flash", "Your session has expired. Please sign in again."); location.replace("login.html"); }
+    const { message, fields } = parseErrorBody(data || {}, res.status);
+    throw new ApiError(message, { status: res.status, fields, data });
+  }
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = "", task = null;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+        if (!line) continue;
+        let msg; try { msg = JSON.parse(line); } catch { continue; }
+        if (msg.type === "event") { try { onEvent && onEvent(msg); } catch {} }
+        else if (msg.type === "result") task = msg.task;
+        else if (msg.type === "error") throw new ApiError(msg.message || "The run did not complete.", { status: 502 });
+      }
+    }
+  } finally { clearTimeout(timer); }
+  if (!task) throw new ApiError("The run ended without a result. Please try again.", { status: 0 });
+  return task;
+}
+
 // --- Endpoint wrappers (only the documented endpoints) ---
 const Api = {
   register: (payload) => request("/auth/register", { method: "POST", body: payload, auth: false }),
   login: (payload) => request("/auth/login", { method: "POST", body: payload, auth: false }),
   me: () => request("/auth/me"),
 
+  streamTask,
   createTask: (payload) => request("/tasks", { method: "POST", body: payload, timeout: TIMEOUTS.task }),
   listTasks: ({ limit, offset, mode } = {}) => request("/tasks", { query: { limit, offset, mode } }),
   getTask: (id) => request(`/tasks/${encodeURIComponent(id)}`),

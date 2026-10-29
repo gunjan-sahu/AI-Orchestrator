@@ -30,7 +30,7 @@ window.Pages.evaluation = () => {
   function comparisonTable(groups) {
     const names = orderKeys(Object.keys(groups));
     const metrics = [...new Set(names.flatMap((n) => Object.keys(groups[n]).filter((m) => !isObj(groups[n][m]) && !Array.isArray(groups[n][m]))))];
-    if (!metrics.length) return emptyState("chart", "No statistics yet", "Run a few tasks in both modes to compare them.");
+    if (!metrics.length) return emptyState("chart", "No statistics yet", "Run a few tasks in both Quick and Verified modes to compare them.");
     return h("div", { class: "table-wrap" }, h("table", { class: "data-table" },
       h("caption", { class: "sr-only", text: "Statistics by mode" }),
       h("thead", {}, h("tr", {}, h("th", { scope: "col", text: "Metric" }), names.map((n) => h("th", { scope: "col", text: groupLabel(n) })))),
@@ -143,7 +143,7 @@ window.Pages.evaluation = () => {
     nodes.push(panel("Benchmark accuracy", "chart", accuracyChart(groups)));
     if (results.length) {
       nodes.push(panel(`Correctness results (${results.length})`, "check", h("div", { class: "table-wrap" }, h("table", { class: "data-table" },
-        h("thead", {}, h("tr", {}, ["Task", "Expected", "Baseline", "Self-correcting"].map((c) => h("th", { scope: "col", text: c })))),
+        h("thead", {}, h("tr", {}, ["Task", "Expected", "Quick", "Verified"].map((c) => h("th", { scope: "col", text: c })))),
         h("tbody", {}, results.map((r) => h("tr", {},
           h("td", { text: r.task }), h("td", { class: "num", text: formatValue(r.expected) }),
           h("td", {}, modeCell(r.baseline)), h("td", {}, modeCell(r.self_correcting)))))))));

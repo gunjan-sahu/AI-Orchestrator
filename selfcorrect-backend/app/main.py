@@ -39,7 +39,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="Self-Correcting Multi-Agent AI Pipeline", version="1.0.0", description=DESCRIPTION,
+app = FastAPI(title="SYNORA – Self-Correcting Multi-Agent AI Pipeline", version="1.0.0", description=DESCRIPTION,
               lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_methods=["*"], allow_headers=["*"])
 

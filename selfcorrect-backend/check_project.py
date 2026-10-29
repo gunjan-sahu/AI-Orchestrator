@@ -17,10 +17,12 @@ REQUIRED = [
     "app/pipeline.py", "app/routers/__init__.py", "app/routers/auth.py", "app/routers/tasks.py",
     "app/routers/evaluation.py", "tests/__init__.py", "tests/conftest.py", "tests/test_api.py", "tests/test_verifiers.py", "tests/test_llm_mode.py", "tests/test_frontend.py",
     "frontend/index.html", "frontend/login.html", "frontend/register.html", "frontend/history.html",
-    "frontend/evaluation.html", "frontend/profile.html", "frontend/about.html", "frontend/404.html", "frontend/icon.svg",
-    "frontend/css/style.css", "frontend/js/api.js", "frontend/js/app.js", "frontend/js/ui.js", "frontend/js/auth.js",
-    "frontend/js/task-view.js", "frontend/js/orchestrator.js", "frontend/js/history.js", "frontend/js/evaluation.js",
-    "frontend/js/profile.js", "frontend/js/about.js",
+    "frontend/evaluation.html", "frontend/profile.html", "frontend/about.html", "frontend/404.html", "frontend/logo.png", "frontend/favicon.ico", "frontend/favicon-32.png", "frontend/apple-touch-icon.png",
+    "frontend/css/synora.css", "frontend/js/api.js", "frontend/js/app.js", "frontend/js/ui.js", "frontend/js/auth.js",
+    "frontend/js/shell.js", "frontend/js/aurora.js", "frontend/js/richtext.js", "frontend/js/task-view.js",
+    "frontend/js/orchestrator.js", "frontend/js/history.js", "frontend/js/evaluation.js", "frontend/js/profile.js", "frontend/js/about.js",
+    "frontend/vendor/katex/katex.min.js", "frontend/vendor/katex/katex.min.css",
+    "frontend/vendor/fonts/inter-latin-wght-normal.woff2", "frontend/vendor/fonts/instrument-serif-latin-400-normal.woff2",
 ]
 ALLOW_EMPTY = {"app/routers/__init__.py", "tests/__init__.py"}
 

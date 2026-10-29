@@ -45,33 +45,31 @@ function verdictTone(round) {
   if (!v) return "neutral";
   return "warn";
 }
-function verificationBadge(verified) {
-  if (verified === true) return h("span", { class: "badge badge-good" }, icon("shield", 14), "Verified");
-  if (verified === false) return h("span", { class: "badge badge-warn" }, icon("alert", 14), "Not verified");
-  return h("span", { class: "badge badge-neutral" }, "Unverified");
+function verificationBadge(verified, mode) {
+  const quick = isBaseline(mode);
+  if (verified === true) return h("span", { class: "badge badge-good" }, icon("shield", 14), quick ? "Passed checks" : "Verified");
+  if (verified === false) return h("span", { class: "badge badge-warn" }, icon("alert", 14), quick ? "Failed a check" : "Not fully verified");
+  return h("span", { class: "badge badge-neutral" }, "Unchecked");
 }
 function modeBadge(mode) {
   return h("span", { class: "badge " + (isBaseline(mode) ? "badge-cobalt" : "badge-violet") }, modeLabel(mode));
 }
-
-// Plans may be text, a list of steps, or an object.
 function renderPlan(plan) {
   if (Array.isArray(plan)) {
     return h("ol", { class: "plan-list" }, plan.map((step, i) => {
       const text = typeof step === "string" ? step : step.description ?? step.step ?? step.title ?? JSON.stringify(step);
-      return h("li", {}, h("span", { class: "step-num", text: String(i + 1).padStart(2, "0") }), h("span", { class: "step-text", text }));
+      return h("li", {}, h("span", { class: "step-num", text: String(i + 1).padStart(2, "0") }), h("span", { class: "step-text" }, renderInline(text)));
     }));
   }
   if (plan && typeof plan === "object" && Array.isArray(plan.steps)) return renderPlan(plan.steps);
   return renderRichText(plan);
 }
 function renderIssues(issues) {
-  if (isNil(issues) || (Array.isArray(issues) && !issues.length)) return h("p", { class: "muted small", text: "No issues reported." });
+  if (isNil(issues) || (Array.isArray(issues) && !issues.length)) return h("p", { class: "muted small", text: "No issues found." });
   const list = Array.isArray(issues) ? issues : [issues];
   return h("ul", { class: "issue-list" }, list.map((it) =>
-    h("li", {}, icon("alert", 14), h("span", { text: typeof it === "string" ? it : it.description ?? it.message ?? it.issue ?? JSON.stringify(it) }))));
+    h("li", {}, icon("alert", 14), renderInline(typeof it === "string" ? it : it.description ?? it.message ?? it.issue ?? JSON.stringify(it)))));
 }
-
 function panel(title, iconName, body, { actions, tone, cls } = {}) {
   return h("section", { class: `panel reveal ${tone ? "panel-" + tone : ""} ${cls || ""}` },
     h("header", { class: "panel-head" },
@@ -80,131 +78,135 @@ function panel(title, iconName, body, { actions, tone, cls } = {}) {
     h("div", { class: "panel-body" }, body));
 }
 function statTile(label, value, iconName) {
-  return h("div", { class: "stat-tile" },
-    h("span", { class: "stat-label" }, iconName ? icon(iconName, 14) : null, label),
-    h("span", { class: "stat-value", text: value }));
+  return h("div", { class: "stat-tile" }, h("span", { class: "stat-label" }, iconName ? icon(iconName, 14) : null, label), h("span", { class: "stat-value", text: value }));
 }
 const textOf = (v) => (typeof v === "string" ? v : isNil(v) ? "" : JSON.stringify(v, null, 2));
+const seconds = (ms) => (isNil(ms) ? DASH : ms >= 1000 ? (ms / 1000).toFixed(1) + " s" : Math.round(ms) + " ms");
 
-// Full task result (used on Orchestrator and in History detail).
+// One-line outcome summary built only from REAL fields returned by the API.
+function trustChip(t) {
+  if (isBaseline(t.mode)) {
+    return t.verified === true ? h("span", { class: "trust quick" }, icon("check", 15), "Quick answer · passed automatic checks")
+      : h("span", { class: "trust warn" }, icon("alert", 15), "Quick answer · not reviewed, may contain errors");
+  }
+  const fixed = t.issuesFixed || 0;
+  if (t.verified === true && fixed > 0) return h("span", { class: "trust fixed" }, icon("spark", 15), `Verified · ${fixed} issue${fixed === 1 ? "" : "s"} corrected`);
+  if (t.verified === true) return h("span", { class: "trust ok" }, icon("shield", 15), "Verified · no issues found");
+  const left = Math.max(0, (t.issuesFound || 0) - fixed);
+  return h("span", { class: "trust warn" }, icon("alert", 15), `Could not fully verify${left ? ` · ${left} issue${left === 1 ? "" : "s"} remaining` : ""}`);
+}
+
+// Collapsible section (accessible disclosure button, animated height).
+function accordion(title, subtitle, content, open = false) {
+  const body = h("div", { class: "report-body" + (open ? " open" : ""), id: "rep-" + Math.random().toString(36).slice(2, 8) }, h("div", { class: "report-inner" }, h("div", { class: "report-pad" }, content)));
+  const btn = h("button", { type: "button", class: "report-toggle", "aria-expanded": String(open), "aria-controls": body.id },
+    h("span", { class: "t" }, icon("shield", 18), h("span", {}, title, h("br"), h("span", { class: "s", text: subtitle }))), h("span", { class: "chev" }, icon("chevD", 18)));
+  btn.addEventListener("click", () => {
+    const now = btn.getAttribute("aria-expanded") !== "true";
+    btn.setAttribute("aria-expanded", String(now)); body.classList.toggle("open", now);
+    if (now) reveal(body);
+  });
+  return h("section", { class: "report glass reveal" }, btn, body);
+}
+
+// Result = the answer first; everything about HOW it was produced lives in the collapsed Verification report.
 function renderTaskResult(raw) {
   const t = normalizeTask(raw);
-  const frag = document.createDocumentFragment();
   const baseline = isBaseline(t.mode);
-
-  frag.appendChild(h("div", { class: "stats-row reveal" },
-    statTile("Mode", modeLabel(t.mode), "layers"),
-    statTile("Provider", t.provider ? humanize(t.provider) : DASH, "info"),
-    statTile("Iterations", baseline ? DASH : isNil(t.iterationsUsed) ? DASH : `${t.iterationsUsed}${t.maxIterations ? " / " + t.maxIterations : ""}`, "refresh"),
-    statTile("Latency", isNil(t.latencyMs) ? DASH : t.latencyMs >= 1000 ? (t.latencyMs / 1000).toFixed(2) + " s" : Math.round(t.latencyMs) + " ms", "clock"),
-    statTile("Issues fixed", isNil(t.issuesFound) ? DASH : `${t.issuesFixed ?? 0} / ${t.issuesFound}`, "fix")));
+  const frag = document.createDocumentFragment();
 
   if (t.error) frag.appendChild(panel("Error", "alert", h("p", { text: textOf(t.error) }), { tone: "danger" }));
+  frag.appendChild(h("section", { class: "answer glass reveal" },
+    h("div", { class: "answer-head" }, trustChip(t), copyButton(() => textOf(t.final), "Copy answer")),
+    renderRichText(t.final)));
 
-  frag.appendChild(panel("Final answer", "shield", renderRichText(t.final), {
-    actions: [verificationBadge(t.verified), copyButton(() => textOf(t.final))], cls: "panel-final",
-  }));
-
-  if (!baseline && !isNil(t.plan)) {
-    frag.appendChild(panel("Planner", "plan", renderPlan(t.plan), { actions: copyButton(() => textOf(t.plan)) }));
+  const c = [];
+  c.push(h("div", { class: "stats-row" },
+    statTile("Mode", modeLabel(t.mode), "layers"),
+    statTile("Review rounds", baseline ? DASH : isNil(t.iterationsUsed) ? DASH : `${t.iterationsUsed}${t.maxIterations ? " / " + t.maxIterations : ""}`, "refresh"),
+    statTile("Issues fixed", isNil(t.issuesFound) ? DASH : `${t.issuesFixed ?? 0} / ${t.issuesFound}`, "fix"),
+    statTile("Time", seconds(t.latencyMs), "clock")));
+  if (!baseline && !isNil(t.plan) && (!Array.isArray(t.plan) || t.plan.length)) {
+    c.push(h("div", { class: "sub-block" }, h("h4", { text: "Planner" }), renderPlan(t.plan)));
   }
-  if (!isNil(t.initial)) {
-    frag.appendChild(panel(baseline ? "Executor output" : "Initial output (Executor)", "exec", renderRichText(t.initial), { actions: copyButton(() => textOf(t.initial)) }));
+  if (!isNil(t.initial) && (!baseline)) {
+    c.push(h("div", { class: "sub-block" }, h("h4", {}, h("span", { text: "First draft (Executor)" }), copyButton(() => textOf(t.initial))), renderRichText(t.initial)));
   }
-
   if (!baseline) {
-    const body = t.rounds.length
-      ? h("ol", { class: "timeline" }, t.rounds.map((r) => {
-          const tone = verdictTone(r);
-          return h("li", { class: `tl-item tl-${tone}` },
-            h("span", { class: "tl-dot", "aria-hidden": "true" }),
-            h("div", { class: "tl-card" },
-              h("div", { class: "tl-head" },
-                h("strong", { text: `Round ${r.round}` }),
-                h("span", { class: `badge badge-${tone === "good" ? "good" : tone === "warn" ? "warn" : "neutral"}`, text: r.verdict ? humanize(r.verdict) : r.passed === true ? "Pass" : r.passed === false ? "Needs fix" : "No verdict" }),
-                !isNil(r.score) ? h("span", { class: "muted small", text: `Score ${formatValue(r.score)}` }) : null),
-              h("div", { class: "tl-section" }, h("span", { class: "eyebrow", text: "Critic issues" }), renderIssues(r.issues)),
-              !isNil(r.feedback) ? h("div", { class: "tl-section" }, h("span", { class: "eyebrow", text: "Critic feedback" }), renderRichText(r.feedback)) : null,
-              !isNil(r.fixed) ? h("div", { class: "tl-section" },
-                h("div", { class: "tl-sub" }, h("span", { class: "eyebrow", text: "Fixer revision" }), copyButton(() => textOf(r.fixed))),
-                renderRichText(r.fixed)) : null));
-        }))
-      : h("p", { class: "muted", text: "No critic rounds were recorded for this task." });
-    frag.appendChild(panel("Critic & Fixer rounds", "critic", body));
+    c.push(h("div", { class: "sub-block" }, h("h4", { text: "Critic & Fixer" }),
+      t.rounds.length ? h("ol", { class: "timeline" }, t.rounds.map((r) => {
+        const tone = verdictTone(r);
+        return h("li", { class: `tl-item tl-${tone}` }, h("span", { class: "tl-dot", "aria-hidden": "true" }),
+          h("div", { class: "tl-card" },
+            h("div", { class: "tl-head" }, h("strong", { text: `Round ${r.round}` }),
+              h("span", { class: `badge badge-${tone === "good" ? "good" : tone === "warn" ? "warn" : "neutral"}`, text: r.passed === true ? "Passed" : r.passed === false ? "Needed a fix" : "No verdict" })),
+            renderIssues(r.issues),
+            !isNil(r.fixed) ? h("div", {}, h("div", { class: "tl-sub" }, h("span", { class: "eyebrow", text: "Fixer revision" }), copyButton(() => textOf(r.fixed))), renderRichText(r.fixed)) : null));
+      })) : h("p", { class: "muted", text: "No review rounds were recorded." })));
+  } else {
+    c.push(h("p", { class: "muted small", text: "Quick mode returns the first answer directly, with no planning or review. Switch to Verified mode to have it checked and corrected." }));
   }
+  // Technical details stay available here for debugging; they are intentionally not shown in the main UI.
+  c.push(h("div", { class: "sub-block" }, h("h4", { text: "Technical details" }),
+    h("dl", { class: "tech" },
+      [["Task ID", t.id], ["Provider", t.provider], ["Mode (API)", t.mode], ["Created", formatDate(t.created)]].map(([k, v]) => h("div", {}, h("dt", { text: k }), h("dd", { text: isNil(v) ? DASH : String(v) }))))));
+
+  const summary = baseline ? "No review performed in Quick mode"
+    : `${t.iterationsUsed ?? t.rounds.length} review round${(t.iterationsUsed ?? t.rounds.length) === 1 ? "" : "s"} · ${t.issuesFound ?? 0} issue${t.issuesFound === 1 ? "" : "s"} found · ${seconds(t.latencyMs)}`;
+  frag.appendChild(accordion("Verification report", summary, c, true));
   return frag;
 }
 
-// ---- Animated four-agent pipeline ----
+Object.assign(window, { normalizeTask, renderTaskResult, modeBadge, verificationBadge, isBaseline, panel, statTile, trustChip });
+
+
+// ===== Agent cards: Planner -> Executor -> Critic -> Fixer. States come from REAL pipeline events. =====
 const AGENTS = [
-  { id: "planner", name: "Planner", role: "Decomposes the task", icon: "plan" },
-  { id: "executor", name: "Executor", role: "Drafts the answer", icon: "exec" },
-  { id: "critic", name: "Critic", role: "Audits for errors", icon: "critic" },
-  { id: "fixer", name: "Fixer", role: "Repairs the output", icon: "fix" },
+  { id: "planner", name: "Planner", role: "Breaks the task into steps", icon: "plan" },
+  { id: "executor", name: "Executor", role: "Writes the first answer", icon: "exec" },
+  { id: "critic", name: "Critic", role: "Hunts for mistakes", icon: "critic" },
+  { id: "fixer", name: "Fixer", role: "Corrects what is wrong", icon: "fix" },
 ];
-const STATE_TEXT = { idle: "Standby", running: "Working", done: "Complete", warn: "Issues found", skipped: "Skipped", error: "Failed" };
-
-function createPipeline(host) {
-  const nodes = {}; const links = [];
-  const track = h("ol", { class: "pipeline", "aria-label": "Agent pipeline status" });
-  AGENTS.forEach((a, i) => {
-    const status = h("span", { class: "agent-status", text: STATE_TEXT.idle });
-    const node = h("li", { class: "agent", dataset: { state: "idle" } },
-      h("div", { class: "agent-orb" }, h("span", { class: "agent-ring" }), icon(a.icon, 22)),
-      h("div", { class: "agent-meta" }, h("span", { class: "agent-index", text: `0${i + 1}` }), h("strong", { text: a.name }), h("span", { class: "agent-role", text: a.role }), status));
-    nodes[a.id] = { node, status };
-    track.appendChild(node);
-    if (i < AGENTS.length - 1) {
-      const link = h("li", { class: "agent-link", "aria-hidden": "true", dataset: { state: "idle" } },
-        h("span", { class: "link-line" }), h("span", { class: "particle p1" }), h("span", { class: "particle p2" }), h("span", { class: "particle p3" }));
-      links.push(link); track.appendChild(link);
-    }
-  });
-  const loop = h("div", { class: "pipeline-loop", "aria-hidden": "true" }, h("span", { text: "Critic \u21C4 Fixer self-correction loop" }));
-  const caption = h("p", { class: "pipeline-caption", role: "status", "aria-live": "polite", text: "Submit a prompt to start the pipeline." });
-  host.replaceChildren(track, loop, caption);
-
-  function set(states, message) {
-    AGENTS.forEach((a, i) => {
-      const s = states[a.id] || "idle";
-      nodes[a.id].node.dataset.state = s;
-      nodes[a.id].status.textContent = STATE_TEXT[s];
-      if (links[i]) {
-        const next = states[AGENTS[i + 1].id] || "idle";
-        links[i].dataset.state = s === "skipped" || next === "skipped" ? "skipped" : s === "running" ? "running" : s === "done" || s === "warn" ? "done" : "idle";
-      }
-    });
-    loop.dataset.state = states.critic === "running" ? "running" : states.fixer === "done" ? "done" : states.critic === "skipped" ? "skipped" : "idle";
-    if (message) caption.textContent = message;
-  }
-  return {
-    show: set,
-    reset() { set({}, "Submit a prompt to start the pipeline."); },
-    // The backend returns only when finished, so we show an honest "in progress" state, not fake step progress.
-    running(mode) {
-      if (isBaseline(mode)) set({ planner: "skipped", executor: "running", critic: "skipped", fixer: "skipped" }, "Baseline run in progress on the server. Waiting for the Executor...");
-      else set({ planner: "running", executor: "running", critic: "running", fixer: "running" }, "Pipeline running on the server. Results appear when all agents finish.");
-    },
-    error(mode) {
-      const b = isBaseline(mode);
-      set({ planner: b ? "skipped" : "error", executor: "error", critic: b ? "skipped" : "error", fixer: b ? "skipped" : "error" }, "The run did not complete.");
-    },
-    fromTask(raw) {
-      const t = normalizeTask(raw);
-      if (isBaseline(t.mode)) {
-        set({ planner: "skipped", executor: isNil(t.initial) && isNil(t.final) ? "error" : "done", critic: "skipped", fixer: "skipped" }, "Baseline: a single Executor pass, no self-correction.");
-        return;
-      }
-      const anyIssues = t.rounds.some((r) => verdictTone(r) === "warn");
-      const anyFix = t.rounds.some((r) => !isNil(r.fixed));
-      set({
-        planner: isNil(t.plan) ? "idle" : "done",
-        executor: isNil(t.initial) && isNil(t.final) ? "error" : "done",
-        critic: t.rounds.length ? (anyIssues && !anyFix ? "warn" : "done") : "idle",
-        fixer: anyFix ? "done" : "skipped",
-      }, `Completed ${t.rounds.length} critic round${t.rounds.length === 1 ? "" : "s"}${anyFix ? " with Fixer revisions" : ""}. ${t.verified === true ? "Final answer verified." : t.verified === false ? "Final answer not verified." : ""}`);
-    },
+const AGENT_STATE_TEXT = { idle: "Standby", active: "Working", done: "Done", skipped: "Not needed" };
+function agentsRow({ quick = false, demo = false } = {}) {
+  const refs = {};
+  const ol = h("ol", { class: "agents" + (quick ? " single" : "") + (demo ? " demo-loop" : ""), "aria-label": "Agents" },
+    AGENTS.map((a, n) => {
+      const text = h("span", { text: demo ? "" : AGENT_STATE_TEXT.idle });
+      const li = h("li", { class: "agent", "data-agent": a.id, "data-state": "idle", style: `--n:${n}` },
+        h("div", { class: "agent-head" }, h("span", { class: "agent-ico" }, icon(a.icon, 16)), h("span", { class: "agent-name", text: a.name })),
+        h("div", { class: "agent-role", text: a.role }),
+        demo ? null : h("div", { class: "agent-state" }, h("i"), text));
+      refs[a.id] = { li, text };
+      return li;
+    }));
+  const set = (id, state, label) => {
+    const r = refs[id]; if (!r) return;
+    r.li.dataset.state = state; r.text.textContent = label || AGENT_STATE_TEXT[state];
+    const total = ol.classList.contains("single") ? 1 : AGENTS.length;
+    const finished = ol.classList.contains("single") ? (refs.executor.li.dataset.state === "done" ? 1 : 0) : AGENTS.filter((x) => ["done", "skipped"].includes(refs[x.id].li.dataset.state)).length;
+    ol.style.setProperty("--prog", Math.round((finished / total) * 100) + "%");
+    ol.classList.toggle("running", AGENTS.some((x) => refs[x.id].li.dataset.state === "active"));
+    if (state === "active") { r.li.classList.remove("pop"); void r.li.offsetWidth; r.li.classList.add("pop"); }
   };
+  const reset = () => { AGENTS.forEach((a) => set(a.id, "idle")); ol.style.setProperty("--prog", "0%"); };
+  // Feed one real event from the streaming API.
+  const apply = (e) => {
+    const rnd = e.round > 1 ? ` · round ${e.round}` : "";
+    if (e.state === "start") return set(e.agent, "active", (e.agent === "critic" ? "Reviewing" : e.agent === "fixer" ? "Fixing" : e.agent === "planner" ? "Planning" : "Writing") + rnd);
+    if (e.agent === "critic") return set("critic", "done", e.issues ? `Found ${e.issues} issue${e.issues === 1 ? "" : "s"}${rnd}` : `No issues${rnd}`);
+    if (e.agent === "fixer") return set("fixer", "done", "Corrected" + rnd);
+    if (e.agent === "planner") return set("planner", "done", `${e.steps} step${e.steps === 1 ? "" : "s"}`);
+    return set(e.agent, "done");
+  };
+  // Settle the row from a finished task (used after the run and for saved tasks).
+  const settle = (t) => {
+    if (isBaseline(t.mode)) { set("executor", "done"); return; }
+    set("planner", "done", `${(t.plan || []).length} steps`); set("executor", "done");
+    const rounds = (t.steps || []).length, found = t.issues_found || 0;
+    set("critic", "done", found ? `Found ${found} issue${found === 1 ? "" : "s"}` : `No issues${rounds > 1 ? "" : ""}`);
+    if (found) set("fixer", "done", t.issues_fixed >= found ? "Corrected" : "Partly corrected"); else set("fixer", "skipped");
+  };
+  return { el: ol, set, reset, apply, settle, setQuick: (q) => ol.classList.toggle("single", q) };
 }
-
-Object.assign(window, { normalizeTask, renderTaskResult, createPipeline, modeBadge, verificationBadge, isBaseline, panel, statTile });
+window.agentsRow = agentsRow;

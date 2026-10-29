@@ -49,6 +49,9 @@ const ICONS = {
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   home: '<path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.6 2.4c-.7.4-1.1.9-1.1 1.7M12 17h.01"/>',
+  pin: '<path d="M12 17v5M9 3h6l-1 6 4 4H6l4-4z"/>',
   layers: '<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>',
 };
 function icon(name, size = 18) {
@@ -122,7 +125,7 @@ function formatDate(value) {
 }
 function modeLabel(mode) {
   if (!mode) return DASH;
-  return /base/i.test(mode) ? "Baseline" : /self|correct/i.test(mode) ? "Self-correcting" : humanize(mode);
+  return /base/i.test(mode) ? "Quick" : /self|correct/i.test(mode) ? "Verified" : humanize(mode);
 }
 
 // ---- Copy to clipboard ----
@@ -149,38 +152,6 @@ function copyButton(getText, label = "Copy") {
   const btn = h("button", { type: "button", class: "btn btn-ghost btn-xs copy-btn", "aria-label": label }, icon("copy", 14), h("span", { class: "btn-label", text: label }));
   btn.addEventListener("click", () => copyText(typeof getText === "function" ? getText() : getText, btn));
   return btn;
-}
-
-// ---- Rich text: preserves line breaks and renders ```code``` blocks safely ----
-function renderRichText(text) {
-  const wrap = h("div", { class: "rich" });
-  if (isNil(text)) { wrap.appendChild(h("p", { class: "muted", text: DASH })); return wrap; }
-  const str = typeof text === "string" ? text : JSON.stringify(text, null, 2);
-  const re = /```([\w+-]*)[^\n]*\n?([\s\S]*?)```/g;
-  let last = 0; let m;
-  while ((m = re.exec(str))) {
-    if (m.index > last) appendProse(wrap, str.slice(last, m.index));
-    wrap.appendChild(codeBlock(m[2].replace(/\n$/, ""), m[1]));
-    last = re.lastIndex;
-  }
-  if (last < str.length) appendProse(wrap, str.slice(last));
-  return wrap;
-}
-function appendProse(wrap, chunk) {
-  const trimmed = chunk.replace(/^\n+|\n+$/g, "");
-  if (!trimmed) return;
-  // Inline `code` spans, rendered as <code> elements via textContent.
-  const p = h("div", { class: "prose" });
-  trimmed.split(/(`[^`\n]+`)/g).forEach((part) => {
-    if (/^`[^`]+`$/.test(part)) p.appendChild(h("code", { class: "inline-code", text: part.slice(1, -1) }));
-    else if (part) p.appendChild(document.createTextNode(part));
-  });
-  wrap.appendChild(p);
-}
-function codeBlock(code, lang) {
-  return h("div", { class: "code-block" },
-    h("div", { class: "code-head" }, h("span", { class: "code-lang", text: lang || "code" }), copyButton(code, "Copy")),
-    h("pre", {}, h("code", { text: code })));
 }
 
 // ---- Loading skeletons & empty states ----
@@ -237,11 +208,11 @@ function reveal(root = document) {
 // Page registry: each page script adds its init function here; app.js runs it.
 window.Pages = window.Pages || {};
 
-Object.assign(window, { h, icon, hydrateIcons, toast, toastError, DASH, isNil, humanize, isRateKey, formatValue, formatDate, modeLabel, copyText, copyButton, renderRichText, codeBlock, skeleton, emptyState, setBusy, confirmDialog, reveal });
+Object.assign(window, { h, icon, hydrateIcons, toast, toastError, DASH, isNil, humanize, isRateKey, formatValue, formatDate, modeLabel, copyText, copyButton, skeleton, emptyState, setBusy, confirmDialog, reveal });
 
 
 // ===== Motion + session helpers =====
-const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const reduceMotion = () => document.documentElement.dataset.motion === "off";
 
 function signOut() {
   Auth.clear();

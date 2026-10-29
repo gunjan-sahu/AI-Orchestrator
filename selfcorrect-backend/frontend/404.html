@@ -3,36 +3,32 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Page not found · Recursive Multi-Agent Pipeline</title>
+  <title>Page not found · SYNORA</title>
   <meta name="description" content="That page does not exist." />
-  <meta name="theme-color" content="#0E100E" />
-  <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <script>document.documentElement.dataset.theme = localStorage.getItem("scmap_theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");</script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
+  <meta name="theme-color" content="#06070A" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="icon" href="favicon-192.png" type="image/png" sizes="192x192" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem("scmap_theme")||"dark";document.documentElement.dataset.motion=localStorage.getItem("synora_motion")==="off"?"off":"on"}catch(e){}</script>
+  <link rel="stylesheet" href="vendor/katex/katex.min.css" />
+  <link rel="stylesheet" href="css/synora.css" />
 </head>
 <body data-page="notfound">
   <a class="skip-link" href="#main">Skip to content</a>
-  <div class="grid-bg" aria-hidden="true"></div>
-  <header class="site-header" id="site-header"></header>
-
-  <main id="main" class="container">
-    <section class="card card-glow notfound reveal">
-      <span class="eyebrow">Error 404</span>
-      <h1>This page <span class="gradient-text">wandered off.</span></h1>
-      <p class="muted">The page you are looking for does not exist. Pick somewhere to go:</p>
-      <div class="profile-actions">
-        <a class="btn btn-primary" href="index.html"><i data-icon="home" data-size="16"></i><span class="btn-label">Orchestrator</span></a>
-        <a class="btn btn-ghost" href="history.html"><i data-icon="history" data-size="16"></i><span class="btn-label">History</span></a>
-        <a class="btn btn-ghost" href="about.html"><i data-icon="spark" data-size="16"></i><span class="btn-label">How it works</span></a>
-        <a class="btn btn-ghost" href="login.html"><i data-icon="user" data-size="16"></i><span class="btn-label">Sign in</span></a>
-      </div>
-    </section>
-  </main>
+  <div class="app" id="app">
+    <div id="topbar-host"></div>
+    <main id="main" class="content">
+      <section class="card notfound reveal"><span class="eyebrow">Error 404</span><h1 class="page-title">This page <em class="grad">wandered off.</em></h1><p class="muted">The page you are looking for does not exist.</p>
+        <div class="profile-actions"><a class="btn btn-primary" href="index.html"><i data-icon="plus" data-size="16"></i><span class="btn-label">New task</span></a><a class="btn btn-ghost" href="history.html"><i data-icon="history" data-size="16"></i><span class="btn-label">History</span></a><a class="btn btn-ghost" href="about.html"><i data-icon="help" data-size="16"></i><span class="btn-label">How it works</span></a></div></section>
+    </main>
+  </div>
+  <script src="vendor/katex/katex.min.js"></script>
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/richtext.js"></script>
+  <script src="js/aurora.js"></script>
+  <script src="js/shell.js"></script>
   <script src="js/task-view.js"></script>
   <script src="js/app.js"></script>
 </body>

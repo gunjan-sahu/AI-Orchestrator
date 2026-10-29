@@ -1,10 +1,15 @@
 """Run the AI pipeline on a task and manage the saved task history."""
+import json
+import queue
+import threading
+
 from fastapi import APIRouter, Depends, Query, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.database import get_db
+from app.database import SessionLocal, get_db
 from app.deps import get_current_user
 from app.errors import AppError
 from app.llm import LLMError
@@ -22,14 +27,9 @@ def _own_task(db: Session, user: User, task_id: int) -> Task:
     return task
 
 
-@router.post("", response_model=TaskOut, status_code=201, summary="Run a task through the pipeline")
-def create_task(body: TaskIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    try:
-        result = run_pipeline(body.prompt, body.mode, body.max_iterations)
-    except LLMError as exc:
-        raise AppError(502, "llm_error", str(exc)) from None
+def _save(db: Session, user_id: int, body: TaskIn, result) -> Task:
     task = Task(
-        user_id=user.id, prompt=body.prompt, mode=body.mode, plan=result.plan,
+        user_id=user_id, prompt=body.prompt, mode=body.mode, plan=result.plan,
         initial_output=result.initial_output, final_output=result.final_output, verified=result.verified,
         iterations=result.iterations, issues_found=result.issues_found, issues_fixed=result.issues_fixed,
         latency_ms=result.latency_ms, provider=settings.llm_provider,
@@ -40,6 +40,43 @@ def create_task(body: TaskIn, user: User = Depends(get_current_user), db: Sessio
     db.commit()
     db.refresh(task)
     return task
+
+
+@router.post("", response_model=TaskOut, status_code=201, summary="Run a task through the pipeline")
+def create_task(body: TaskIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        result = run_pipeline(body.prompt, body.mode, body.max_iterations)
+    except LLMError as exc:
+        raise AppError(502, "llm_error", str(exc)) from None
+    return _save(db, user.id, body, result)
+
+
+@router.post("/stream", summary="Run a task and stream live agent progress (newline-delimited JSON)")
+def create_task_stream(body: TaskIn, user: User = Depends(get_current_user)):
+    """Each line is a JSON object: {"type":"event", ...agent progress...}, then one
+    {"type":"result","task":{...}} or {"type":"error","message":"..."}. Events are real, emitted by the pipeline."""
+    user_id = user.id
+    q: queue.Queue = queue.Queue()
+
+    def worker():
+        try:
+            result = run_pipeline(body.prompt, body.mode, body.max_iterations, on_event=lambda e: q.put({"type": "event", **e}))
+            with SessionLocal() as db:
+                task = _save(db, user_id, body, result)
+                q.put({"type": "result", "task": TaskOut.model_validate(task).model_dump(mode="json")})
+        except LLMError as exc:
+            q.put({"type": "error", "code": "llm_error", "message": str(exc)})
+        except Exception:  # noqa: BLE001 - never leave the stream hanging
+            q.put({"type": "error", "code": "internal_error", "message": "Something went wrong while running the task."})
+        q.put(None)
+
+    threading.Thread(target=worker, daemon=True).start()
+
+    def lines():
+        while (item := q.get()) is not None:
+            yield json.dumps(item) + "\n"
+
+    return StreamingResponse(lines(), media_type="application/x-ndjson", headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
 
 @router.get("", response_model=TaskList, summary="List your tasks (newest first)")

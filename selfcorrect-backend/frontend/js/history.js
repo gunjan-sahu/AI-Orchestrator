@@ -43,15 +43,15 @@ window.Pages.history = () => {
   function renderList() {
     if (!state.items.length) {
       list.replaceChildren(h("li", {}, emptyState("history", state.offset ? "No more tasks" : "No tasks yet",
-        state.mode ? "No tasks match this mode filter." : "Run your first prompt in the Orchestrator.",
-        state.offset ? null : h("a", { class: "btn btn-primary", href: "index.html" }, icon("play", 16), h("span", { class: "btn-label", text: "Open Orchestrator" })))));
+        state.mode ? "No tasks match this mode filter." : "Start your first task and it will appear here.",
+        state.offset ? null : h("a", { class: "btn btn-primary", href: "index.html" }, icon("play", 16), h("span", { class: "btn-label", text: "New task" })))));
       return;
     }
     list.replaceChildren(...state.items.map((raw) => {
       const t = normalizeTask(raw);
       const open = h("button", { type: "button", class: "task-open", "aria-pressed": String(state.selected === t.id) },
         h("span", { class: "task-prompt", text: t.prompt || "(no prompt)" }),
-        h("span", { class: "task-meta" }, modeBadge(t.mode), verificationBadge(t.verified), h("time", { datetime: t.created || "", text: formatDate(t.created) })));
+        h("span", { class: "task-meta" }, modeBadge(t.mode), verificationBadge(t.verified, t.mode), h("time", { datetime: t.created || "", text: formatDate(t.created) })));
       open.addEventListener("click", () => openDetail(t.id));
       const del = h("button", { type: "button", class: "icon-btn icon-btn-danger", "aria-label": "Delete task" }, icon("trash", 16));
       del.addEventListener("click", () => remove(t.id, del));
@@ -68,28 +68,37 @@ window.Pages.history = () => {
     nextBtn.disabled = state.loading || (state.total != null ? state.offset + state.limit >= state.total : state.items.length < state.limit);
   }
 
+  const scrim = h("div", { class: "scrim", hidden: true });
+  document.body.appendChild(scrim);
+  function showDrawer() { scrim.hidden = false; detail.hidden = false; scrim.classList.remove("closing"); detail.classList.remove("closing"); }
+  function hideDrawer() {
+    if (detail.hidden) return;
+    scrim.classList.add("closing"); detail.classList.add("closing");
+    setTimeout(() => { scrim.hidden = true; detail.hidden = true; scrim.classList.remove("closing"); detail.classList.remove("closing"); }, 230);
+  }
+  scrim.addEventListener("click", () => closeDetail());
+  function closeDetail() { state.selected = null; hideDrawer(); renderList(); }
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !detail.hidden && !document.querySelector("dialog[open]")) closeDetail(); });
+
   async function openDetail(id) {
     state.selected = id;
     renderList();
-    detail.hidden = false;
+    showDrawer();
     detail.replaceChildren(h("div", { class: "panel" }, skeleton(3), skeleton(5)));
-    if (window.innerWidth < 1024) detail.scrollIntoView({ behavior: "smooth", block: "start" });
     try {
       const task = await Api.getTask(id);
       const t = normalizeTask(task);
       const close = h("button", { type: "button", class: "icon-btn", "aria-label": "Close details" }, icon("x", 16));
-      close.addEventListener("click", () => { state.selected = null; detail.hidden = true; renderList(); });
+      close.addEventListener("click", closeDetail);
       const del = h("button", { type: "button", class: "btn btn-danger btn-sm" }, icon("trash", 14), h("span", { class: "btn-label", text: "Delete" }));
       del.addEventListener("click", () => remove(id, del));
-      const pipeHost = h("div", { class: "pipeline-host compact" });
       detail.replaceChildren(
         h("div", { class: "detail-head" },
           h("div", {}, h("span", { class: "eyebrow", text: `Task ${t.id ?? ""}` }), h("h2", { class: "detail-title", text: "Task details" }),
             h("p", { class: "muted small", text: formatDate(t.created) })),
           h("div", { class: "detail-actions" }, del, close)),
         panel("Prompt", "send", renderRichText(t.prompt), { actions: copyButton(() => t.prompt || "") }),
-        pipeHost, renderTaskResult(task));
-      createPipeline(pipeHost).fromTask(task);
+        h("div", { class: "results-in" }, renderTaskResult(task)));
       reveal(detail);
       detail.querySelector(".detail-title").focus?.();
     } catch (err) {
@@ -105,7 +114,7 @@ window.Pages.history = () => {
     try {
       await Api.deleteTask(id);
       toast("Task deleted.", "success");
-      if (state.selected === id) { state.selected = null; detail.hidden = true; }
+      if (state.selected === id) { state.selected = null; hideDrawer(); }
       if (state.items.length === 1 && state.offset > 0) state.offset = Math.max(0, state.offset - state.limit);
       await load();
     } catch (err) {

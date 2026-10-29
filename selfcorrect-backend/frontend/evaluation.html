@@ -3,61 +3,40 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Evaluation · Recursive Multi-Agent Pipeline</title>
-  <meta name="description" content="Compare baseline and self-correcting performance and run real benchmarks." />
-  <meta name="theme-color" content="#0E100E" />
-  <script>document.documentElement.dataset.theme = localStorage.getItem("scmap_theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");</script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
+  <title>Insights · SYNORA</title>
+  <meta name="description" content="Compare Verified and Quick answers across your own tasks." />
+  <meta name="theme-color" content="#06070A" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="icon" href="favicon-192.png" type="image/png" sizes="192x192" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem("scmap_theme")||"dark";document.documentElement.dataset.motion=localStorage.getItem("synora_motion")==="off"?"off":"on"}catch(e){}</script>
+  <link rel="stylesheet" href="vendor/katex/katex.min.css" />
+  <link rel="stylesheet" href="css/synora.css" />
 </head>
 <body data-page="evaluation">
   <a class="skip-link" href="#main">Skip to content</a>
-  <div class="grid-bg" aria-hidden="true"></div>
-  <header class="site-header" id="site-header"></header>
-
-  <main id="main" class="container">
-    <section class="page-hero reveal">
-      <div>
-        <span class="chip"><span class="dot"></span>Evaluation</span>
-        <h1>Does self-correction <span class="gradient-text">actually help?</span></h1>
-        <p>Compare your personal baseline and self-correcting runs, then benchmark both modes against known answers.</p>
-      </div>
-      <button type="button" id="stats-refresh" class="btn btn-ghost"><i data-icon="refresh" data-size="16"></i><span class="btn-label">Refresh stats</span></button>
-    </section>
-
-    <div class="eval-grid">
-      <section class="card reveal" aria-labelledby="stats-title">
-        <div class="section-title"><div><span class="eyebrow">Your tasks</span><h2 id="stats-title">Mode comparison</h2></div></div>
-        <div id="stats" aria-live="polite"></div>
+  <div class="app" id="app">
+    <div id="topbar-host"></div>
+    <main id="main" class="content">
+      <div class="page-head"><div><span class="chip"><span class="dot"></span>Insights</span><h1 class="page-title" style="margin-top:14px">How much does <em class="grad">verification</em> help?</h1><p class="page-sub">Compare Verified and Quick answers on your own saved tasks, or run the built-in benchmark.</p></div>
+        <button type="button" id="stats-refresh" class="btn btn-ghost"><i data-icon="refresh" data-size="16"></i><span class="btn-label">Refresh</span></button></div>
+      <section class="card reveal" aria-labelledby="stats-title"><div class="section-title"><div><span class="eyebrow">Your tasks</span><h2 id="stats-title">Verified vs Quick</h2></div></div><div id="stats" aria-live="polite"></div></section>
+      <section class="card reveal" aria-labelledby="chart-title"><div class="section-title"><div><span class="eyebrow">Accuracy</span><h2 id="chart-title">Pass rates</h2></div></div><div id="stats-chart"></div></section>
+      <section class="card card-glow reveal" aria-labelledby="bench-title">
+        <div class="bench-card"><div><span class="eyebrow">Benchmark</span><h2 id="bench-title" style="font:400 28px/1.1 var(--font-display);margin-top:6px">Run the correctness benchmark</h2><p class="muted" style="margin-top:8px;max-width:56ch">Sends a fixed set of arithmetic questions through both modes and checks each answer exactly. This can take a few minutes and uses your AI quota.</p></div>
+          <button type="button" id="bench-btn" class="btn btn-primary btn-lg"><i data-icon="play" data-size="16"></i><span class="btn-label">Run benchmark</span></button></div>
+        <div class="bench-status" id="bench-status" role="status" hidden><span class="elapsed bench-elapsed">0m 00s elapsed</span><span class="muted small">Keep this tab open until it finishes.</span></div>
+        <div id="bench-results" aria-live="polite"></div>
       </section>
-      <section class="card reveal" aria-labelledby="chart-title">
-        <div class="section-title"><div><span class="eyebrow">Accuracy</span><h2 id="chart-title">Baseline vs self-correcting</h2></div></div>
-        <div id="stats-chart"></div>
-      </section>
-    </div>
-
-    <section class="card card-glow bench-card reveal" aria-labelledby="bench-title">
-      <div class="bench-head">
-        <div>
-          <span class="eyebrow">Benchmark</span>
-          <h2 id="bench-title" style="font-size:22px;margin-top:4px">Run the correctness benchmark</h2>
-          <p>Executes the backend benchmark suite in both modes and scores each answer. This uses real model calls and can take several minutes.</p>
-        </div>
-        <button type="button" id="bench-btn" class="btn btn-primary btn-lg"><i data-icon="play" data-size="16"></i><span class="btn-label">Run benchmark</span></button>
-      </div>
-      <div class="bench-status" id="bench-status" role="status" hidden>
-        <span class="bench-spinner" aria-hidden="true"></span>
-        <div><strong>Benchmark in progress</strong><span>This can take several minutes. Please keep this tab open.</span></div>
-        <span class="bench-elapsed">0m 00s elapsed</span>
-      </div>
-      <div id="bench-results" aria-live="polite"></div>
-    </section>
-  </main>
-
+    </main>
+  </div>
+  <script src="vendor/katex/katex.min.js"></script>
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/richtext.js"></script>
+  <script src="js/aurora.js"></script>
+  <script src="js/shell.js"></script>
   <script src="js/task-view.js"></script>
   <script src="js/evaluation.js"></script>
   <script src="js/app.js"></script>

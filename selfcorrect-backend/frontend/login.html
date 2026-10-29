@@ -3,65 +3,40 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sign in · Recursive Multi-Agent Pipeline</title>
-  <meta name="description" content="Sign in to the Self-Correcting Multi-Agent AI Pipeline." />
-  <meta name="theme-color" content="#0E100E" />
-  <script>document.documentElement.dataset.theme = localStorage.getItem("scmap_theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");</script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
+  <title>Welcome back · SYNORA</title>
+  <meta name="description" content="Think. Verify. Refine." />
+  <meta name="theme-color" content="#06070A" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="icon" href="favicon-192.png" type="image/png" sizes="192x192" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem("scmap_theme")||"dark";document.documentElement.dataset.motion=localStorage.getItem("synora_motion")==="off"?"off":"on"}catch(e){}</script>
+  <link rel="stylesheet" href="vendor/katex/katex.min.css" />
+  <link rel="stylesheet" href="css/synora.css" />
 </head>
 <body data-page="login">
-  <a class="skip-link" href="#auth-form">Skip to sign in form</a>
-  <div class="auth-layout">
-    <aside class="auth-visual" aria-hidden="true">
-      <div class="brand"><span class="brand-mark"><i data-icon="logo" data-size="20"></i></span><span class="brand-text"><strong>Recursive</strong><span>Multi-Agent Pipeline</span></span></div>
-      <div>
-        <div class="orbit">
-          <div class="orbit-ring"></div>
-          <div class="orbit-ring r2"></div>
-          <div class="orbit-core"><i data-icon="spark" data-size="30"></i></div>
-          <div class="orbit-node" style="left:50%;top:0"><i data-icon="plan" data-size="22"></i></div>
-          <div class="orbit-node" style="left:100%;top:50%"><i data-icon="exec" data-size="22"></i></div>
-          <div class="orbit-node" style="left:50%;top:100%"><i data-icon="critic" data-size="22"></i></div>
-          <div class="orbit-node" style="left:0;top:50%"><i data-icon="fix" data-size="22"></i></div>
-        </div>
-        <h1>Answers that <span class="gradient-text">check their own work.</span></h1>
-        <p class="lede">Four specialised agents plan, execute, critique and repair every response until it holds up to scrutiny.</p>
-      </div>
-      <div class="auth-foot"><span><i data-icon="plan" data-size="14"></i>Planner</span><span><i data-icon="exec" data-size="14"></i>Executor</span><span><i data-icon="critic" data-size="14"></i>Critic</span><span><i data-icon="fix" data-size="14"></i>Fixer</span></div>
-    </aside>
-
-    <main class="auth-panel">
-      <button type="button" class="icon-btn theme-toggle" aria-label="Toggle theme"></button>
-      <div class="auth-card reveal">
-        <span class="eyebrow">Welcome back</span>
-        <h2>Sign in to your workspace</h2>
-        <p class="sub">Continue orchestrating your self-correcting agents.</p>
-        <form id="auth-form" novalidate>
-          <div class="form-banner" role="alert" hidden></div>
-          <div class="field">
-            <label for="email">Email</label>
-            <input class="input" id="email" name="email" type="email" autocomplete="email" placeholder="you@university.edu" required aria-describedby="email-error" />
-            <span class="field-error" id="email-error" data-error-for="email"></span>
-          </div>
-          <div class="field">
-            <label for="password">Password</label>
-            <div class="input-wrap">
-              <input class="input" id="password" name="password" type="password" autocomplete="current-password" placeholder="Your password" required aria-describedby="password-error" />
-              <button type="button" class="icon-btn pw-toggle" data-target="password" aria-label="Show password"></button>
-            </div>
-            <span class="field-error" id="password-error" data-error-for="password"></span>
-          </div>
-          <button type="submit" class="btn btn-primary btn-lg btn-block"><span class="btn-label">Sign in</span><i data-icon="chevR" data-size="16"></i></button>
-        </form>
-        <p class="auth-switch">New here? <a href="register.html">Create an account</a></p>
-      </div>
-    </main>
-  </div>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="auth-corner"><button type="button" class="icon-btn theme-toggle" aria-label="Toggle theme"></button></div>
+  <main id="main" class="auth-stage">
+    <section class="auth-card glass">
+      <div class="auth-top"><div data-orb="small"></div></div>
+      <div style="text-align:center"><h1>Welcome back</h1><p class="muted" style="margin-top:6px">Think. Verify. Refine.</p></div>
+      <form id="auth-form" novalidate>
+        <div class="form-banner" role="alert" hidden></div>
+        <div class="field" style="margin-bottom:14px"><label class="label" for="email">Email</label><input class="input" id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required /><span class="field-error" data-error-for="email"></span></div>
+        <div class="field" style="margin-bottom:14px"><label class="label" for="password">Password</label><div class="input-wrap"><input class="input" id="password" name="password" type="password" autocomplete="current-password" placeholder="" required /><button type="button" class="pw-toggle" data-target="password" aria-label="Show password"></button></div><span class="field-error" data-error-for="password"></span></div>
+        <button type="submit" class="btn btn-primary btn-lg btn-block" style="margin-top:6px"><span class="btn-label">Sign in</span><i data-icon="chevR" data-size="16"></i></button>
+      </form>
+      <p class="auth-switch">New here? <a href="register.html">Create an account</a> · <a href="about.html">How it works</a></p>
+    </section>
+  </main>
+  <script src="vendor/katex/katex.min.js"></script>
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/richtext.js"></script>
+  <script src="js/aurora.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/task-view.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/app.js"></script>
 </body>

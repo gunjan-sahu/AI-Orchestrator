@@ -26,7 +26,7 @@ def test_local_assets_exist_and_pages_register_scripts():
     registered = set(re.findall(r"window\.Pages\.(\w+)\s*=", "".join(p.read_text(encoding="utf-8") for p in (FRONT / "js").glob("*.js"))))
     for page in PAGES:
         html = (FRONT / f"{page}.html").read_text(encoding="utf-8")
-        for ref in re.findall(r'(?:src|href)="((?:js|css)/[^"]+|icon\.svg)"', html):
+        for ref in re.findall(r'(?:src|href)="((?:js|css|vendor)/[^"]+|(?:favicon|apple-touch-icon|logo)[^"]*)"', html):
             assert (FRONT / ref).is_file(), f"{page}.html references missing {ref}"
         name = re.search(r'data-page="(\w+)"', html).group(1)
         assert name == "notfound" or name in registered, f"{page}.html has no script registering Pages.{name}"
@@ -38,3 +38,19 @@ def test_frontend_matches_api_error_shape(client):
     """The UI reads {error:{message,details:[{field,message}]}}, which is what the API returns."""
     body = client.post("/api/auth/register", json={"email": "bad", "full_name": "A", "password": "x"}).json()
     assert {d["field"] for d in body["error"]["details"]} >= {"email", "full_name", "password"}
+
+
+def test_css_font_and_math_assets_are_local():
+    css = (FRONT / "css" / "synora.css").read_text(encoding="utf-8")
+    for ref in re.findall(r"url\((\.\./vendor/[^)]+)\)", css):
+        assert (FRONT / "css" / ref).resolve().is_file(), ref
+    assert "http" not in re.sub(r"http://www\.w3\.org/2000/svg", "", css), "CSS must not load remote assets"
+
+
+def test_provider_is_hidden_from_main_ui_but_kept_in_api(client, auth):
+    t = client.post("/api/tasks", json={"prompt": "What is 2 + 3 * 4?"}, headers=auth).json()
+    assert t["provider"] == "mock"  # still in the API data
+    view = (FRONT / "js" / "task-view.js").read_text(encoding="utf-8")
+    assert '["Provider", t.provider]' in view  # only inside the collapsed Technical details of the report
+    for page in PAGES:
+        assert "Openai" not in (FRONT / f"{page}.html").read_text(encoding="utf-8")

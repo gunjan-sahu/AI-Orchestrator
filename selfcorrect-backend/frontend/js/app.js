@@ -1,13 +1,16 @@
-// ===== App shell: theme, auth guards, header, and page bootstrapping =====
-
-// --- Theme (persisted light/dark) ---
+// ===== App bootstrap: theme, auth guards, shell, page init =====
 const Theme = {
   KEY: "scmap_theme",
   current() { return document.documentElement.dataset.theme || "dark"; },
   set(theme) {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem(this.KEY, theme);
-    document.querySelectorAll(".theme-toggle").forEach(updateThemeButton);
+    const apply = () => {
+      document.documentElement.dataset.theme = theme;
+      try { localStorage.setItem(this.KEY, theme); } catch {}
+      document.querySelectorAll(".theme-toggle").forEach(updateThemeButton);
+      window.dispatchEvent(new Event("themechange"));
+    };
+    // Smooth cross-fade where the browser supports it.
+    if (document.startViewTransition && !reduceMotion()) document.startViewTransition(apply); else apply();
   },
   toggle() { this.set(this.current() === "dark" ? "light" : "dark"); },
 };
@@ -17,78 +20,22 @@ function updateThemeButton(btn) {
   btn.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
   btn.setAttribute("title", dark ? "Light theme" : "Dark theme");
 }
-function themeButton() {
-  const btn = h("button", { type: "button", class: "icon-btn theme-toggle" });
-  updateThemeButton(btn);
-  btn.addEventListener("click", () => Theme.toggle());
-  return btn;
-}
 
-// --- Header (signed-in app pages and public pages) ---
-function renderHeader(page) {
-  const host = document.getElementById("site-header");
-  if (!host) return;
-  const authed = Auth.isAuthed();
-  const user = Auth.getUser() || {};
-  const links = authed
-    ? [
-        { href: "index.html", label: "Orchestrator", icon: "layers", id: "orchestrator" },
-        { href: "history.html", label: "History", icon: "history", id: "history" },
-        { href: "evaluation.html", label: "Evaluation", icon: "chart", id: "evaluation" },
-        { href: "about.html", label: "How it works", icon: "spark", id: "about" },
-      ]
-    : [{ href: "about.html", label: "How it works", icon: "spark", id: "about" }];
-  const name = user.full_name || user.email || "Account";
-  const initials = name.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((s) => s[0].toUpperCase()).join("");
-
-  let actions;
-  if (authed) {
-    const logout = h("button", { type: "button", class: "icon-btn", "aria-label": "Sign out", title: "Sign out" }, icon("logout", 18));
-    logout.addEventListener("click", signOut);
-    actions = [
-      themeButton(),
-      h("a", { href: "profile.html", class: "user-chip" + (page === "profile" ? " active" : ""), title: user.email || "Your profile", "aria-label": "Open your profile" },
-        h("span", { class: "avatar", text: initials || "U" }), h("span", { class: "user-name", text: name })),
-      logout,
-    ];
-  } else {
-    actions = [
-      themeButton(),
-      h("a", { href: "login.html", class: "btn btn-ghost btn-sm" }, h("span", { class: "btn-label", text: "Sign in" })),
-      h("a", { href: "register.html", class: "btn btn-primary btn-sm" }, h("span", { class: "btn-label", text: "Get started" })),
-    ];
-  }
-
-  host.replaceChildren(
-    h("div", { class: "header-inner" },
-      h("a", { href: authed ? "index.html" : "about.html", class: "brand", "aria-label": "Self-Correcting Pipeline home" },
-        h("span", { class: "brand-mark" }, icon("logo", 20)),
-        h("span", { class: "brand-text" }, h("strong", { text: "Recursive" }), h("span", { text: "Multi-Agent Pipeline" }))),
-      h("nav", { class: "main-nav", "aria-label": "Primary" },
-        links.map((l) => h("a", { href: l.href, class: "nav-link" + (l.id === page ? " active" : ""), "aria-current": l.id === page ? "page" : null },
-          icon(l.icon, 16), h("span", { text: l.label })))),
-      h("div", { class: "header-actions" }, actions)));
-}
-
-// --- Page registry: each page script registers an init function here ---
 window.Pages = window.Pages || {};
+const PUBLIC_PAGES = ["about", "notfound"];
 
 document.addEventListener("DOMContentLoaded", async () => {
   const page = document.body.dataset.page;
   const isAuthPage = page === "login" || page === "register";
-  const isPublic = page === "about" || page === "notfound"; // viewable without signing in
-
-  // Auth redirects: signed-in users skip login/register, guests can't see app pages.
   if (isAuthPage && Auth.isAuthed()) { location.replace("index.html"); return; }
-  if (!isAuthPage && !isPublic && !Auth.isAuthed()) { location.replace("login.html"); return; }
+  if (!isAuthPage && !PUBLIC_PAGES.includes(page) && !Auth.isAuthed()) { location.replace("login.html"); return; }
 
+  document.querySelectorAll("[data-orb]").forEach((el) => el.append(makeOrb(el.dataset.orb)));
   hydrateIcons();
-  document.querySelectorAll(".theme-toggle").forEach((btn) => {
-    updateThemeButton(btn);
-    btn.addEventListener("click", () => Theme.toggle());
-  });
-  if (!isAuthPage) renderHeader(page);
+  document.querySelectorAll(".theme-toggle").forEach((btn) => { updateThemeButton(btn); btn.addEventListener("click", () => Theme.toggle()); });
+  if (!isAuthPage) renderShell(page);
   initMotion();
+  initTilt();
 
   const flash = sessionStorage.getItem("scmap_flash");
   if (flash) { sessionStorage.removeItem("scmap_flash"); toast(flash, "warning"); }
@@ -96,9 +43,42 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (window.Pages[page]) window.Pages[page]();
   reveal();
 
-  // Quietly refresh the stored user profile (also validates the token).
-  if (!isAuthPage && Auth.isAuthed()) {
-    try { const me = await Api.me(); if (me) { Auth.setUser(me.user || me); renderHeader(page); } }
+  if (!isAuthPage && Auth.isAuthed()) {            // quietly validate the token and refresh the profile
+    try { const me = await Api.me(); if (me) { Auth.setUser(me.user || me); } }
     catch (err) { if (err.status !== 401 && err.status !== 0) console.warn("Profile refresh failed:", err.message); }
   }
 });
+
+// Subtle 3D tilt on cards that opt in with class "tilt".
+function initTilt() {
+  if (reduceMotion()) return;
+  document.querySelectorAll(".tilt").forEach((el) => {
+    el.addEventListener("pointermove", (e) => {
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--ry", (((e.clientX - r.left) / r.width - .5) * 6).toFixed(2) + "deg");
+      el.style.setProperty("--rx", ((.5 - (e.clientY - r.top) / r.height) * 5).toFixed(2) + "deg");
+    });
+    el.addEventListener("pointerleave", () => { el.style.setProperty("--rx", "0deg"); el.style.setProperty("--ry", "0deg"); });
+  });
+}
+
+
+// ===== Extra life: cursor spotlight on cards + mascot hop on click =====
+(function () {
+  let raf = 0;
+  addEventListener("pointermove", (e) => {
+    if (raf || document.documentElement.dataset.motion === "off") return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      const el = e.target.closest && e.target.closest(".card, .answer, .report, .composer, .agent, .stat-tile, .kpi");
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--mx", (e.clientX - r.left) + "px"); el.style.setProperty("--my", (e.clientY - r.top) + "px");
+    });
+  }, { passive: true });
+  document.addEventListener("click", (e) => {
+    const m = e.target.closest && e.target.closest(".orb-mascot");
+    if (!m) return;
+    m.classList.remove("hop"); void m.offsetWidth; m.classList.add("hop");
+  });
+})();

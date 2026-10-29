@@ -31,8 +31,8 @@ window.Pages.profile = () => {
     snapshot.replaceChildren(
       h("div", { class: "stats-row" },
         statTile("Total tasks", formatValue(data.total_tasks), "layers"),
-        statTile("Verified (self-correcting)", formatValue(sc.verified_rate_pct, "verified_rate_pct"), "shield"),
-        statTile("Verified (baseline)", formatValue(base.verified_rate_pct, "verified_rate_pct"), "exec"),
+        statTile("Pass rate \u00B7 Verified", formatValue(sc.verified_rate_pct, "verified_rate_pct"), "shield"),
+        statTile("Pass rate \u00B7 Quick", formatValue(base.verified_rate_pct, "verified_rate_pct"), "exec"),
         statTile("Issues fixed", formatValue(sc.issues_fixed), "fix"),
         statTile("Correction rate", formatValue(sc.correction_rate_pct, "correction_rate_pct"), "refresh")));
     reveal(snapshot);
@@ -42,8 +42,8 @@ window.Pages.profile = () => {
   Api.listTasks({ limit: 5 }).then((data) => {
     const items = data.items || [];
     if (!items.length) {
-      recent.replaceChildren(h("li", {}, emptyState("history", "No tasks yet", "Run your first prompt in the Orchestrator.",
-        h("a", { class: "btn btn-primary", href: "index.html" }, icon("play", 16), h("span", { class: "btn-label", text: "Open Orchestrator" })))));
+      recent.replaceChildren(h("li", {}, emptyState("history", "No tasks yet", "Start your first task and it will appear here.",
+        h("a", { class: "btn btn-primary", href: "index.html" }, icon("play", 16), h("span", { class: "btn-label", text: "New task" })))));
       return;
     }
     recent.replaceChildren(...items.map((raw) => {
@@ -51,7 +51,7 @@ window.Pages.profile = () => {
       return h("li", { class: "task-row reveal" },
         h("a", { class: "task-open", href: "history.html" },
           h("span", { class: "task-prompt", text: t.prompt || "(no prompt)" }),
-          h("span", { class: "task-meta" }, modeBadge(t.mode), verificationBadge(t.verified), h("time", { text: formatDate(t.created) }))));
+          h("span", { class: "task-meta" }, modeBadge(t.mode), verificationBadge(t.verified, t.mode), h("time", { text: formatDate(t.created) }))));
     }));
     reveal(recent);
   }).catch((e) => { recent.replaceChildren(h("li", {}, emptyState("alert", "Could not load tasks", e.message))); toastError(e); });
