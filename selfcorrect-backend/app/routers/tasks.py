@@ -1,5 +1,6 @@
 """Run the AI pipeline on a task and manage the saved task history."""
 import json
+import logging
 import queue
 import threading
 

@@ -27,7 +27,7 @@
         <form id="task-form" class="composer glass" novalidate>
           <div class="field">
             <label class="sr-only" for="prompt">Your prompt</label>
-            <textarea class="textarea" id="prompt" name="prompt" maxlength="4000" required placeholder="Ask anything: maths, code, explanations, analysis…" aria-describedby="prompt-error prompt-help"></textarea>
+            <textarea class="textarea" id="prompt" name="prompt" maxlength="4000" required placeholder="Ask anything…" aria-describedby="prompt-error prompt-help"></textarea>
             <div class="composer-foot">
               <span class="field-error" id="prompt-error"></span>
               <span class="hint" id="prompt-help"><span class="char-count" id="char-count">0 / 4,000</span> · <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> to run</span>
@@ -53,7 +53,10 @@
               <label class="switch"><input type="checkbox" id="iter-toggle" /> Limit review rounds</label>
               <div class="range-group"><label for="max-iterations" class="sr-only">Maximum review rounds</label><input type="range" id="max-iterations" min="1" max="5" step="1" value="3" disabled /><span class="iter-value" id="iter-value">3</span></div>
             </details>
+            <div class="run-actions">
+            <button type="button" id="mic-btn" class="icon-btn mic" aria-label="Speak your prompt" aria-pressed="false" title="Speak your prompt"><i data-icon="mic" data-size="18"></i></button>
             <button type="submit" id="run-btn" class="btn btn-primary btn-lg"><i data-icon="send" data-size="16"></i><span class="btn-label">Run</span></button>
+              </div>
           </div>
         </form>
       </section>
