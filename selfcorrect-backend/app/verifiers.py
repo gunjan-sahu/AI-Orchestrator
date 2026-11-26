@@ -144,3 +144,31 @@ def check_basic(output: str) -> list[str]:
 
 def run_verifiers(task: str, output: str) -> list[str]:
     return check_basic(output) + check_math(task, output) + check_python(output)
+
+
+def verify(task: str, output: str) -> list[dict]:
+    """Same checks as run_verifiers, but as keyed findings with evidence, for the objection ledger.
+
+    The key is stable across rounds so the ledger can tell "still failing" from "new problem".
+    """
+    findings = []
+    for msg in check_basic(output):
+        findings.append({"key": "V-basic", "type": "completeness", "problem": msg,
+                         "evidence": "Deterministic length check on the answer text."})
+    expr = extract_expression(task)
+    if expr is not None:
+        expected, actual = expected_answer(task), extract_answer(output)
+        if actual is None:
+            findings.append({"key": "V-math", "type": "math", "problem": "No final line 'Answer: <number>'.",
+                             "evidence": f"The task contains '{expr}', which a safe evaluator computes as {fmt(expected)}.",
+                             "suggested_fix": f"State the result as 'Answer: {fmt(expected)}'."})
+        elif not numbers_match(expected, actual):
+            findings.append({"key": "V-math", "type": "math",
+                             "problem": f"Stated answer {fmt(actual)} is wrong for '{expr}'.",
+                             "evidence": f"A safe evaluator with standard operator precedence computes {fmt(expected)}.",
+                             "suggested_fix": f"Recompute with precedence; the correct value is {fmt(expected)}."})
+    for i, msg in enumerate(check_python(output), start=1):
+        findings.append({"key": f"V-py{i}", "type": "code", "problem": msg,
+                         "evidence": "Python's own parser (ast.parse) rejects this code block."})
+    return findings
+

@@ -38,6 +38,7 @@ class Settings:
     token_expire_minutes: int
     llm_provider: str
     llm_model: str
+    llm_quick_model: str
     llm_api_key: str
     llm_base_url: str
     llm_timeout: int
@@ -71,6 +72,7 @@ def load_settings() -> Settings:
         token_expire_minutes=_get_int("TOKEN_EXPIRE_MINUTES", 60),
         llm_provider=provider,
         llm_model=os.getenv("LLM_MODEL", "").strip() or DEFAULT_MODELS[provider],
+        llm_quick_model=os.getenv("LLM_QUICK_MODEL", "").strip(),  # empty = same as LLM_MODEL
         llm_api_key=api_key,
         llm_base_url=(os.getenv("LLM_BASE_URL", "").strip() or DEFAULT_BASE_URLS.get(provider, "")).rstrip("/"),
         llm_timeout=_get_int("LLM_TIMEOUT_SECONDS", 60),

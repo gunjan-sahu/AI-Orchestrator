@@ -1,7 +1,7 @@
 """Database engine and session handling (SQLAlchemy 2.x, SQLite by default)."""
 import os
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
@@ -48,3 +48,12 @@ def init_db() -> None:
         if path and path != ":memory:":
             os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     Base.metadata.create_all(bind=engine)
+    _add_missing_columns()
+
+
+def _add_missing_columns() -> None:
+    """Tiny forward-only migration: databases created before `tasks.trace` existed get the column added."""
+    columns = {c["name"] for c in inspect(engine).get_columns("tasks")}
+    if "trace" not in columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE tasks ADD COLUMN trace JSON"))

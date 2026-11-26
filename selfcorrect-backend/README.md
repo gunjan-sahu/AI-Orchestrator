@@ -190,19 +190,35 @@ Codes used: `validation_error` (422), `not_authenticated` / `invalid_token` / `t
 
 ---
 
-## How the correction loop works
+## How the two modes work
 
-1. **Planner** writes numbered steps. **Executor** produces the first answer (saved as `initial_output`).
-2. **Critic** reviews the answer. It always runs the deterministic checks in `verifiers.py`:
-   * arithmetic in the task is evaluated with a **safe AST evaluator** (never `eval`) and compared with the answer's final `Answer: <number>` line,
-   * fenced Python code blocks must parse,
-   * the answer must not be empty.
+The modes are different programs, not the same prompt with parts switched off.
 
-   With a real model, the LLM Critic additionally reviews logic and facts and returns JSON `{"verdict", "issues"}`.
-3. If issues exist, the **Fixer** rewrites the answer and the Critic checks again, up to `MAX_ITERATIONS`. The loop stops early if the Fixer changes nothing.
-4. `verified=true` means the final answer passed the Critic; otherwise the best attempt is returned with `verified=false` and the remaining issues are in `steps`.
+**Quick (`mode: "baseline"`)**: one model call with its own terse prompt (`QUICK_SYSTEM`), a 700-token cap and an
+optional cheaper model (`LLM_QUICK_MODEL`). No plan, no review. The result is just the answer plus a one-line footer.
+A free deterministic check only *measures* it so the Evaluation page can compare modes; it never changes the answer.
 
-**Baseline mode** runs only the Executor (no plan, Critic or Fixer). An independent deterministic check *measures* the result so the two modes can be compared fairly.
+**Verified (`mode: "self_correcting"`)**: four agents that exchange structured artifacts, not free text.
+
+| Agent | Produces | Consumed by |
+|---|---|---|
+| Planner | approach, steps, assumptions, task-specific **risks**, testable **acceptance checks** | Executor (steps, risks), Critic (checks) |
+| Executor | answer + the **claims** it relies on + uncertainties + plan deviations | Critic attacks the claims |
+| Critic | objections with **severity, type, target and evidence**; rulings on earlier objections; what it actually verified; what it could not verify | Fixer, next Critic round |
+| Fixer | a response to **every** objection (accept / reject with reasoning / partial) + the corrected answer | next Critic round, report |
+
+Rules that stop the Critic from being decoration:
+
+* An objection **without evidence** is not an objection. It is downgraded to an "unresolved risk" and can never cause a fix cycle.
+* Only **blocking / major** objections trigger the Fixer. Minor ones are reported, not "fixed".
+* Deterministic verifiers (arithmetic via a safe evaluator, Python syntax) are ground truth: they override a lenient Critic and the Fixer cannot argue with them.
+* The Fixer **may disagree**. A rebuttal goes back to the Critic, who must rule `resolved`, `upheld` or `withdrawn`. A dispute still standing after one rebuttal becomes **contested**: the loop stops and both positions are shown to you.
+* The loop also stops when the Critic approves, when the Fixer changes nothing, or at `MAX_ITERATIONS`. A clean answer costs 3 model calls; the Fixer only runs when there is something to fix.
+* Confidence (`high` / `medium` / `low`) is computed from the final ledger, not self-reported by a model.
+
+Every task stores a `trace` (returned by `GET /api/tasks/{id}`): the agent messages, the full objection ledger with
+statuses, real line diffs of each correction, unresolved risks and run statistics. Tasks saved before this feature
+have `trace: null` and render with the previous layout. Existing SQLite databases get the new column automatically.
 
 ## AI providers
 

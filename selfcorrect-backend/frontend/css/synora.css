@@ -426,3 +426,15 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
 .demo-note { font: 500 11px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
 .demo-note { margin: 0 0 14px; }
 .demo-loop { width: 100%; }
+
+/* ---- Quick vs Verified result formats ---- */
+.quick-answer { display: grid; gap: 14px; }
+.quick-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--border); }
+.quick-foot .copy-btn, .quick-foot > button:last-child { margin-left: auto; }
+.mini-list { list-style: disc; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; color: var(--text-2); }
+.kv { display: grid; gap: 6px; font-size: 14px; }
+.ledger { list-style: none; padding: 0; display: grid; gap: 12px; }
+.ledger-row { display: grid; gap: 8px; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--glass); }
+.diff { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--glass-2); border: 1px solid var(--border); font: 400 12.5px/1.6 var(--font-mono); white-space: pre-wrap; overflow-x: auto; }
+.risks { border-color: color-mix(in srgb, var(--amber) 45%, transparent); }
+

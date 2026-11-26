@@ -94,6 +94,7 @@ class TaskOut(TaskSummary):
     final_output: str
     provider: str
     steps: list[StepOut]
+    trace: dict | None = None  # Verified mode: agent messages + final report. None for Quick / older tasks.
 
 
 class TaskList(BaseModel):

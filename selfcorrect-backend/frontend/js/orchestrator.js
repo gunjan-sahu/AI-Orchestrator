@@ -81,7 +81,8 @@ window.Pages.orchestrator = () => {
     try {
       const task = await Api.streamTask(payload, (e) => {
         agents.apply(e);
-        if (e.state === "start") statusText.textContent = (LABEL[e.agent] || "Working") + (e.round > 1 ? ` · round ${e.round}` : "") + "…";
+        if (e.summary) statusText.textContent = e.summary + (e.round > 1 ? ` · round ${e.round}` : "") + "…";
+        else if (e.state === "start") statusText.textContent = (LABEL[e.agent] || "Working") + (e.round > 1 ? ` · round ${e.round}` : "") + "…";
       });
       agents.settle(task);
       Aurora.setState("done");

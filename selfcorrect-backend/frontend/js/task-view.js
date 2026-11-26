@@ -34,6 +34,7 @@ function normalizeTask(t) {
     tokens: t.total_tokens ?? t.tokens_used ?? t.tokens ?? null,
     created: t.created_at ?? t.createdAt ?? null,
     error: t.error ?? t.error_message ?? null,
+    trace: t.trace ?? null,
   };
 }
 
@@ -110,8 +111,7 @@ function accordion(title, subtitle, content, open = false) {
 }
 
 // Result = the answer first; everything about HOW it was produced lives in the collapsed Verification report.
-function renderTaskResult(raw) {
-  const t = normalizeTask(raw);
+function renderLegacyResult(t) {
   const baseline = isBaseline(t.mode);
   const frag = document.createDocumentFragment();
 
@@ -155,6 +155,110 @@ function renderTaskResult(raw) {
     : `${t.iterationsUsed ?? t.rounds.length} review round${(t.iterationsUsed ?? t.rounds.length) === 1 ? "" : "s"} · ${t.issuesFound ?? 0} issue${t.issuesFound === 1 ? "" : "s"} found · ${seconds(t.latencyMs)}`;
   frag.appendChild(accordion("Verification report", summary, c, true));
   return frag;
+}
+
+
+// ---------------------------------------------------------------------------------------------
+// Two different result formats. Quick = the answer and one footer line. Verified = answer + confidence +
+// the agents' actual discussion, objection ledger, corrections and unresolved risks (all from trace data).
+// ---------------------------------------------------------------------------------------------
+const AGENT_NAME = { planner: "Planner", executor: "Executor", critic: "Critic", fixer: "Fixer" };
+const AGENT_ICON = { planner: "plan", executor: "exec", critic: "critic", fixer: "fix" };
+const SEV_TONE = { blocking: "warn", major: "warn", minor: "neutral" };
+const STATUS_TEXT = { open: "Open", resolved: "Resolved", disputed: "Disputed", contested: "Contested", withdrawn: "Withdrawn" };
+const STATUS_TONE = { resolved: "good", withdrawn: "good", open: "warn", disputed: "warn", contested: "warn" };
+const RISK_LABEL = { open_objection: "Unresolved objection", contested: "Contested", minor: "Minor issue", critic_risk: "Critic could not verify", executor_uncertainty: "Executor was unsure", assumption: "Planner assumption" };
+
+const bullets = (items) => (items && items.length ? h("ul", { class: "mini-list" }, items.map((x) => h("li", {}, renderInline(x)))) : null);
+const labelled = (label, node) => (node ? h("div", { class: "kv" }, h("span", { class: "eyebrow", text: label }), node) : null);
+
+function renderQuickResult(t) {
+  const tr = t.trace || {};
+  const frag = document.createDocumentFragment();
+  if (t.error) frag.appendChild(panel("Error", "alert", h("p", { text: textOf(t.error) }), { tone: "danger" }));
+  frag.appendChild(h("section", { class: "answer glass reveal quick-answer" },
+    renderRichText(t.final),
+    h("div", { class: "quick-foot" },
+      h("span", { class: "trust quick" }, icon("exec", 14), "Quick · one call · not reviewed"),
+      h("span", { class: "muted small", text: `${seconds(t.latencyMs)}${tr.model ? " · " + tr.model : ""}` }),
+      t.verified === false ? h("span", { class: "badge badge-warn" }, icon("alert", 14), "Failed an automatic check") : null,
+      copyButton(() => textOf(t.final), "Copy answer"))));
+  return frag;
+}
+
+function confidenceChip(report) {
+  const level = report.confidence || "low";
+  const tone = level === "high" ? "ok" : level === "medium" ? "fixed" : "warn";
+  return h("span", { class: `trust ${tone}`, title: report.confidence_reason || "" },
+    icon(level === "high" ? "shield" : "alert", 15), `${level[0].toUpperCase() + level.slice(1)} confidence`);
+}
+
+function messageBody(m) {
+  const d = m.data || {};
+  if (m.agent === "planner") return [labelled("Approach", d.approach ? renderInline(d.approach) : null), labelled("Acceptance checks", bullets(d.checks)), labelled("Risks flagged", bullets(d.risks)), labelled("Assumptions", bullets(d.assumptions))];
+  if (m.agent === "executor") return [labelled("Claims it relies on", bullets(d.claims)), labelled("Unsure about", bullets(d.uncertain)), labelled("Departed from plan", bullets(d.deviations))];
+  if (m.agent === "critic") return [labelled("Actually verified", bullets(d.verified)), labelled("Rulings on earlier objections", bullets((d.rulings || []).map((r) => `${r.id}: ${r.ruling}${r.reason ? " - " + r.reason : ""}`))), labelled("Could not verify", bullets(d.risks)), d.parsed === false ? h("p", { class: "muted small", text: "The Critic's reply could not be parsed; only deterministic checks applied." }) : null];
+  if (m.agent === "fixer") {
+    const diff = d.diff || {};
+    return [labelled("Responses", bullets((d.responses || []).map((r) => `${r.id} ${r.action.toUpperCase()}${r.reason ? ": " + r.reason : ""}${r.change ? " (changed: " + r.change + ")" : ""}`))),
+      diff.samples && diff.samples.length ? labelled("Actual change", h("pre", { class: "diff", text: diff.samples.join("\n") })) : null];
+  }
+  return [];
+}
+
+function renderPipelineResult(t) {
+  const tr = t.trace, report = tr.report || {}, stats = report.stats || {};
+  const frag = document.createDocumentFragment();
+  if (t.error) frag.appendChild(panel("Error", "alert", h("p", { text: textOf(t.error) }), { tone: "danger" }));
+  frag.appendChild(h("section", { class: "answer glass reveal" },
+    h("div", { class: "answer-head" }, confidenceChip(report), copyButton(() => textOf(t.final), "Copy answer")),
+    renderRichText(t.final),
+    report.confidence_reason ? h("p", { class: "muted small", text: report.confidence_reason }) : null));
+
+  const c = [];
+  c.push(h("div", { class: "stats-row" },
+    statTile("Review rounds", String(stats.rounds ?? DASH), "refresh"),
+    statTile("Objections resolved", `${stats.resolved ?? 0} / ${stats.found ?? 0}`, "fix"),
+    statTile("Model calls", String(stats.llm_calls ?? DASH), "layers"),
+    statTile("Time", seconds(t.latencyMs), "clock")));
+
+  if ((report.unresolved_risks || []).length) {
+    c.push(h("div", { class: "sub-block risks" }, h("h4", { text: "Unresolved risks" }),
+      h("ul", { class: "issue-list" }, report.unresolved_risks.map((r) => h("li", {}, icon("alert", 14), h("span", {}, h("strong", { text: RISK_LABEL[r.kind] || r.kind }), ": ", renderInline(r.text)))))));
+  }
+
+  c.push(h("div", { class: "sub-block" }, h("h4", { text: "What each agent contributed" }),
+    h("ol", { class: "timeline" }, (tr.messages || []).map((m) => h("li", { class: "tl-item tl-good" }, h("span", { class: "tl-dot", "aria-hidden": "true" }),
+      h("div", { class: "tl-card" },
+        h("div", { class: "tl-head" }, icon(AGENT_ICON[m.agent] || "spark", 15), h("strong", { text: AGENT_NAME[m.agent] || m.agent }),
+          m.round ? h("span", { class: "badge badge-neutral", text: `Round ${m.round}` }) : null, h("span", { class: "muted small", text: seconds(m.ms) })),
+        h("p", { class: "small", text: m.summary }), ...messageBody(m)))))));
+
+  const objs = tr.objections || [];
+  c.push(h("div", { class: "sub-block" }, h("h4", { text: "Objection ledger" }),
+    objs.length ? h("ul", { class: "ledger" }, objs.map((o) => h("li", { class: "ledger-row" },
+      h("div", { class: "tl-head" }, h("strong", { text: o.id }), h("span", { class: `badge badge-${SEV_TONE[o.severity] || "neutral"}`, text: o.severity }),
+        h("span", { class: "badge badge-neutral", text: o.source === "verifier" ? "Deterministic check" : "Critic" }),
+        h("span", { class: `badge badge-${STATUS_TONE[o.status] || "neutral"}`, text: STATUS_TEXT[o.status] || o.status })),
+      h("p", { class: "small" }, renderInline(o.problem)),
+      labelled("Evidence", renderInline(o.evidence)),
+      o.fixer_action ? labelled(`Fixer (${o.fixer_action})`, renderInline(o.fixer_reason || o.change || "-")) : null,
+      o.resolution ? labelled("Outcome", renderInline(o.resolution)) : null)))
+      : h("p", { class: "muted small", text: "Nobody raised an objection against this answer." })));
+
+  c.push(h("div", { class: "sub-block" }, h("h4", { text: "Technical details" }),
+    h("dl", { class: "tech" }, [["Task ID", t.id], ["Provider", t.provider], ["Mode (API)", t.mode], ["Stopped because", report.decision], ["Created", formatDate(t.created)]]
+      .map(([k, v]) => h("div", {}, h("dt", { text: k }), h("dd", { text: isNil(v) ? DASH : String(v) }))))));
+
+  frag.appendChild(accordion("Review report", `${stats.rounds ?? 0} round${stats.rounds === 1 ? "" : "s"} · ${stats.found ?? 0} serious objection${stats.found === 1 ? "" : "s"} · ${(report.unresolved_risks || []).length} open risk${(report.unresolved_risks || []).length === 1 ? "" : "s"}`, c, true));
+  return frag;
+}
+
+function renderTaskResult(raw) {
+  const t = normalizeTask(raw);
+  if (isBaseline(t.mode)) return renderQuickResult(t);
+  if (t.trace && t.trace.format === "pipeline") return renderPipelineResult(t);
+  return renderLegacyResult(t); // Verified tasks saved before traces existed
 }
 
 Object.assign(window, { normalizeTask, renderTaskResult, modeBadge, verificationBadge, isBaseline, panel, statTile, trustChip });
