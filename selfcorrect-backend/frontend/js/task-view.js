@@ -238,7 +238,7 @@ function renderPipelineResult(t) {
   c.push(h("div", { class: "sub-block" }, h("h4", { text: "Objection ledger" }),
     objs.length ? h("ul", { class: "ledger" }, objs.map((o) => h("li", { class: "ledger-row" },
       h("div", { class: "tl-head" }, h("strong", { text: o.id }), h("span", { class: `badge badge-${SEV_TONE[o.severity] || "neutral"}`, text: o.severity }),
-        h("span", { class: "badge badge-neutral", text: o.source === "verifier" ? "Deterministic check" : "Critic" }),
+        h("span", { class: "badge badge-neutral", text: o.source === "verifier" ? "Deterministic check" : o.executed ? "Critic · executed check" : "Critic" }),
         h("span", { class: `badge badge-${STATUS_TONE[o.status] || "neutral"}`, text: STATUS_TEXT[o.status] || o.status })),
       h("p", { class: "small" }, renderInline(o.problem)),
       labelled("Evidence", renderInline(o.evidence)),

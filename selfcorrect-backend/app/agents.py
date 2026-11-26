@@ -14,7 +14,7 @@ project runs without an API key. Its Executor is deliberately a naive left-to-ri
 import json
 import re
 
-from app import llm, verifiers
+from app import llm, sandbox, verifiers
 from app.config import settings
 
 # ---------------------------------------------------------------- prompts
@@ -260,7 +260,8 @@ def _normalize_critic(data: dict) -> dict:
     rulings = [r for r in data.get("rulings", []) if isinstance(r, dict)] if isinstance(data.get("rulings"), list) else []
     return {"verdict": "approve" if str(data.get("verdict", "")).lower() == "approve" else "revise",
             "verified": _strs(data.get("verified"), 6), "objections": objections[:MAX_OBJECTIONS],
-            "rulings": rulings, "risks": risks[:6], "parsed": True}
+            "rulings": rulings, "risks": risks[:6], "parsed": True,
+            "check_code": str(data.get("check_code") or "").strip()[:3000]}
 
 
 def _critic_prompt(task, p, draft, output, findings, prior, rnd) -> str:
@@ -272,7 +273,36 @@ def _critic_prompt(task, p, draft, output, findings, prior, rnd) -> str:
              f"VERIFIER RESULTS (ground truth):\n{ground}", f"ANSWER (round {rnd}):\n{output}"]
     if prior:
         parts.insert(1, "EARLIER OBJECTIONS AND THE FIXER'S RESPONSES (rule on each by id):\n" + json.dumps(prior, indent=1))
+    if sandbox.enabled():
+        parts.append(
+            "EXECUTION TOOL (use it whenever the answer can be tested by code): add a field \"check_code\" to your JSON "
+            "with a short stdlib-only Python 3 script (max 25 lines) that independently tests the answer. The string "
+            "variable ANSWER holds the answer text (extract code blocks from it with re if needed, then exec them). "
+            "Print 'PASS' if the answer is correct, otherwise print 'FAIL: <what is wrong and the correct value>'. "
+            "Good uses: counting letters/words/sentences, exact arithmetic, date maths, running the answer's code with "
+            "your own test inputs. Omit it if the answer cannot be tested by code. Your script is executed for real "
+            "and its output is shown as evidence.")
     return "\n\n".join(parts)
+
+
+def _apply_executed_check(review: dict, output: str) -> dict:
+    """Run the Critic's check_code in the sandbox; real output becomes evidence, never the model's opinion."""
+    code = review.pop("check_code", "")
+    if not code or not sandbox.enabled():
+        return review
+    res = sandbox.run_python(code, answer=output, timeout=5)
+    text = res["output"]
+    first = text.splitlines()[0] if text else ""
+    if res["ok"] and first.upper().startswith("FAIL"):
+        review["objections"].insert(0, {"target": "answer", "severity": "blocking", "type": "logic",
+                                        "problem": first[:300], "executed": True, "suggested_fix": text[:300],
+                                        "evidence": f"Executed the Critic's independent check against this answer; it printed: {text}"})
+        review["verdict"] = "revise"
+    elif res["ok"] and first.upper().startswith("PASS"):
+        review["verified"].append("Executed an independent check script against the answer: PASS.")
+    else:  # the check itself crashed or timed out: say so, do not turn it into an accusation
+        review["risks"].append(f"The Critic's executable check could not be used ({text[:160] or 'no output'}).")
+    return review
 
 
 def critique(task: str, p: dict, draft: dict, output: str, findings: list[dict], prior: list[dict] | None,
@@ -283,15 +313,15 @@ def critique(task: str, p: dict, draft: dict, output: str, findings: list[dict],
         verified = ([f"Recomputed '{expr}' with a safe evaluator (operator precedence applied)."] if expr
                     else ["Answer is non-empty."])
         return {"verdict": "revise" if findings else "approve", "verified": verified, "objections": [],
-                "rulings": [], "risks": [], "parsed": True}
+                "rulings": [], "risks": [], "parsed": True, "check_code": ""}
     text = llm.complete(CRITIC_SYSTEM, _critic_prompt(task, p, draft, output, findings, prior, rnd),
                         max_tokens=900, temperature=0.0)
     data = _json_obj(text)
     if not isinstance(data, dict):  # unreadable reply: say so instead of silently approving or failing
         return {"verdict": "approve" if not findings else "revise", "verified": [], "objections": [], "rulings": [],
                 "risks": ["The Critic's reply was unreadable, so only deterministic checks were applied this round."],
-                "parsed": False}
-    return _normalize_critic(data)
+                "parsed": False, "check_code": ""}
+    return _apply_executed_check(_normalize_critic(data), output)
 
 
 # ---------------------------------------------------------------- Fixer

@@ -167,8 +167,25 @@ def verify(task: str, output: str) -> list[dict]:
                              "problem": f"Stated answer {fmt(actual)} is wrong for '{expr}'.",
                              "evidence": f"A safe evaluator with standard operator precedence computes {fmt(expected)}.",
                              "suggested_fix": f"Recompute with precedence; the correct value is {fmt(expected)}."})
+    ran = check_tests_run(output)
+    if ran and not ran["ok"]:
+        findings.append({"key": "V-run", "type": "code", "problem": "The answer's own code and tests fail when executed.",
+                         "evidence": f"Executed the code blocks; result: {ran['output']}"})
     for i, msg in enumerate(check_python(output), start=1):
         findings.append({"key": f"V-py{i}", "type": "code", "problem": msg,
                          "evidence": "Python's own parser (ast.parse) rejects this code block."})
     return findings
 
+
+def check_tests_run(output: str) -> dict | None:
+    """If the answer contains Python with assert-style tests, execute them (needs ALLOW_CODE_EXECUTION)."""
+    from app import sandbox  # local import: sandbox needs config, verifiers must stay import-light
+    if not sandbox.enabled():
+        return None
+    blocks = re.findall(r"```(?:python|py)\s*\n(.*?)```", output or "", re.DOTALL | re.IGNORECASE)
+    if not any("assert" in b for b in blocks):
+        return None
+    res = sandbox.run_python("\n\n".join(blocks), timeout=5)
+    if res["ok"]:
+        return {"ok": True, "output": "all assertions passed"}
+    return {"ok": False, "output": res["output"]}

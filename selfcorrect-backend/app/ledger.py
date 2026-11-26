@@ -34,7 +34,7 @@ class Ledger:
     # ------------------------------------------------------------------ adding objections
     def _new(self, **fields) -> dict:
         item = {"status": "open", "disputes": 0, "fixer_action": None, "fixer_reason": "", "change": "",
-                "resolution": "", "introduced_by_fix": False, **fields}
+                "resolution": "", "introduced_by_fix": False, "executed": False, **fields}
         self.items[item["id"]] = item
         return item
 
@@ -81,7 +81,7 @@ class Ledger:
             added.append(self._new(id=f"O{self._seq}", round=rnd, source="critic", severity=o["severity"],
                                    type=o["type"], target=o["target"], problem=o["problem"], evidence=o["evidence"],
                                    suggested_fix=o.get("suggested_fix", ""),
-                                   introduced_by_fix=bool(o.get("introduced_by_fix"))))
+                                   introduced_by_fix=bool(o.get("introduced_by_fix")), executed=bool(o.get("executed"))))
         return added
 
     def apply_fixer(self, responses: list[dict]) -> None:
@@ -118,7 +118,7 @@ class Ledger:
 
     def export(self) -> list[dict]:
         keep = ("id", "round", "source", "severity", "type", "target", "problem", "evidence", "suggested_fix",
-                "status", "fixer_action", "fixer_reason", "change", "resolution", "disputes", "introduced_by_fix")
+                "status", "fixer_action", "fixer_reason", "change", "resolution", "disputes", "introduced_by_fix", "executed")
         return [{k: i.get(k) for k in keep} for i in self.items.values()]
 
 

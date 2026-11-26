@@ -209,3 +209,57 @@ def test_stream_events_carry_real_summaries(client, auth):
         lines = [json.loads(x) for x in r.iter_lines() if x]
     critic_done = [m for m in lines if m.get("agent") == "critic" and m.get("state") == "done"][0]
     assert critic_done["objections"] and "serious objection" in critic_done["summary"]
+
+
+# ------------------------------------------------------------------ executable checks (opt-in sandbox)
+from app import sandbox, verifiers  # noqa: E402
+
+
+def test_sandbox_runs_limits_and_hides_the_environment(monkeypatch):
+    monkeypatch.setenv("SOME_SECRET_TOKEN", "hunter2")
+    ok = sandbox.run_python("import os\nprint(ANSWER.upper(), os.environ.get('SOME_SECRET_TOKEN'))", answer="abc")
+    assert ok["ok"] and ok["output"] == "ABC None"
+    assert not sandbox.run_python("assert 1 == 2")["ok"]
+    slow = sandbox.run_python("while True: pass", timeout=1)
+    assert slow["timed_out"] and not slow["ok"]
+
+
+def test_answers_own_tests_are_executed_only_when_enabled(monkeypatch):
+    bad = "```python\ndef add(a, b):\n    return a - b\n\nassert add(2, 3) == 5\n```"
+    good = bad.replace("a - b", "a + b")
+    monkeypatch.setattr(sandbox, "enabled", lambda: False)
+    assert verifiers.verify(TASK, bad) == [] or all(f["key"] != "V-run" for f in verifiers.verify(TASK, bad))
+    monkeypatch.setattr(sandbox, "enabled", lambda: True)
+    assert any(f["key"] == "V-run" and "AssertionError" in f["evidence"] for f in verifiers.verify(TASK, bad))
+    assert all(f["key"] != "V-run" for f in verifiers.verify(TASK, good))
+
+
+def test_critic_executes_a_check_and_real_output_becomes_evidence(run, monkeypatch):
+    monkeypatch.setattr(sandbox, "enabled", lambda: True)
+    check = "n = len(ANSWER.split())\nprint('PASS' if n == 5 else f'FAIL: answer has {n} words, expected 5')"
+    llm = FakeLLM(planner=[PLAN], executor=[executor("Rain falls softly.")],
+                  critic=[json.dumps({"verdict": "approve", "verified": ["read it"], "check_code": check}),  # lenient verdict
+                          json.dumps({"verdict": "approve", "verified": ["recounted"], "check_code": check})],
+                  fixer=[fixer([{"id": "O1", "action": "accept", "reason": "miscounted", "change": "added words"}],
+                               "Rain falls softly on rooftops.")])
+    result = run(llm)
+    assert "EXECUTION TOOL" in llm.prompt("critic", 0)
+    first = result.trace["objections"][0]
+    assert first["executed"] and "answer has 3 words" in first["evidence"] and first["status"] == "resolved"
+    assert llm.roles() == ["planner", "executor", "critic", "fixer", "critic"] and result.verified
+    assert any("Executed an independent check" in v for v in result.trace["messages"][-1]["data"]["verified"])
+
+
+def test_execution_tool_is_not_advertised_when_disabled(run):
+    llm = FakeLLM(planner=[PLAN], executor=[executor()], critic=[critic()])
+    run(llm)
+    assert "EXECUTION TOOL" not in llm.prompt("critic", 0)  # no wasted prompt tokens
+
+
+def test_a_crashing_check_is_a_risk_not_an_accusation(run, monkeypatch):
+    monkeypatch.setattr(sandbox, "enabled", lambda: True)
+    llm = FakeLLM(planner=[PLAN], executor=[executor()],
+                  critic=[json.dumps({"verdict": "approve", "verified": ["x"], "check_code": "raise RuntimeError('boom')"})])
+    result = run(llm)
+    assert result.verified and "fixer" not in llm.roles()
+    assert any("could not be used" in r["text"] for r in result.trace["report"]["unresolved_risks"])
