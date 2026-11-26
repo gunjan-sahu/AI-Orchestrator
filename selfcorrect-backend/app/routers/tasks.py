@@ -33,7 +33,7 @@ def _save(db: Session, user_id: int, body: TaskIn, result) -> Task:
         user_id=user_id, prompt=body.prompt, mode=body.mode, plan=result.plan,
         initial_output=result.initial_output, final_output=result.final_output, verified=result.verified,
         iterations=result.iterations, issues_found=result.issues_found, issues_fixed=result.issues_fixed,
-        latency_ms=result.latency_ms, provider=settings.llm_provider,
+        latency_ms=result.latency_ms, provider=settings.llm_provider, trace=result.trace,
         steps=[IterationLog(number=s["number"], output=s["output"], verdict=s["verdict"], issues=s["issues"])
                for s in result.steps],
     )

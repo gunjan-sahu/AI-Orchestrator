@@ -14,19 +14,29 @@ class LLMError(Exception):
     """The language-model service failed or returned something unusable."""
 
 
-def complete(system: str, prompt: str) -> str:
-    """Send one prompt to the configured model and return its text reply."""
+def complete(system: str, prompt: str, *, max_tokens: int = 2048, temperature: float | None = None,
+             model: str | None = None) -> str:
+    """Send one prompt to the configured model and return its text reply.
+
+    max_tokens / temperature / model are per-call overrides so Quick mode can use a small, cheap call
+    while the review agents keep a larger budget.
+    """
     provider = settings.llm_provider
+    model = model or settings.llm_model
     if provider == "anthropic":
         url = f"{settings.llm_base_url}/v1/messages"
         headers = {"x-api-key": settings.llm_api_key, "anthropic-version": "2023-06-01"}
-        payload = {"model": settings.llm_model, "max_tokens": 2048, "system": system,
+        payload = {"model": model, "max_tokens": max_tokens, "system": system,
                    "messages": [{"role": "user", "content": prompt}]}
+        if temperature is not None:
+            payload["temperature"] = temperature
     elif provider == "openai":
         url = f"{settings.llm_base_url}/chat/completions"
         headers = {"Authorization": f"Bearer {settings.llm_api_key}"} if settings.llm_api_key else {}
-        payload = {"model": settings.llm_model, "max_tokens": 2048,
+        payload = {"model": model, "max_tokens": max_tokens,
                    "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}]}
+        if temperature is not None:
+            payload["temperature"] = temperature
     else:
         raise LLMError("No language model is configured (LLM_PROVIDER=mock).")
 

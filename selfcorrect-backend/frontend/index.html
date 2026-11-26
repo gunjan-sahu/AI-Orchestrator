@@ -34,17 +34,17 @@
             </div>
           </div>
           <div class="examples" aria-label="Example prompts">
-            <button type="button" class="example" data-example="Write a Python function that checks whether a string is a valid palindrome, ignoring punctuation and case. Include tests.">Code with tests</button>
-            <button type="button" class="example" data-example="What is 100 / 5 * 2 + 3 ^ 2 - 8 / 4 * 3? Show the working.">Maths</button>
-            <button type="button" class="example" data-example="Explain the difference between TCP and UDP to a first-year student, with two real-world examples of each.">Explain a concept</button>
-            <button type="button" class="example" data-example="A bat and a ball cost 110 together. The bat costs 100 more than the ball. How much does the ball cost? Show your reasoning.">Trick question</button>
-            <button type="button" class="example" data-example="A shop gives 20% off 850, then adds 18% GST on the discounted price, then a flat 50 delivery fee that is exempt from GST. What is the final price? Show every step.">Shop price</button>
+            <button type="button" class="example" data-example="Write a Python function wrap_text(text, width) that wraps text into lines of at most width characters without splitting words (a word longer than width stays on its own line). Include 5 assert tests, including an empty string and a word longer than width.">Code with tests</button>
+            <button type="button" class="example" data-example="What is 987654321 * 123456789 + 5555555 * 4444444? Show the working.">Big maths</button>
+            <button type="button" class="example" data-example="Write exactly 4 sentences about monsoon rain. Every sentence must have exactly 9 words, and the third sentence must not contain the letter a.">Word limits</button>
+            <button type="button" class="example" data-example="How many times does the letter e appear in this sentence: The eleven developers remembered every deadline? Then list the words that contain it, in order.">Letter count</button>
+            <button type="button" class="example" data-example="A shop gives 20% off 850, then adds 18% GST on the discounted price, then gives a further 5% loyalty discount on the GST-inclusive total. What is the final price to 2 decimals? Show every step.">Shop price</button>
           </div>
           <fieldset style="border:0;padding:0;margin:0">
             <legend class="sr-only">Answer mode</legend>
             <div class="modes">
-              <div class="mode"><input type="radio" id="mode-verified" name="mode" value="self_correcting" checked /><label for="mode-verified"><strong><i data-icon="shield" data-size="16"></i>Verified</strong><span>Plans, drafts, reviews and corrects the answer before showing it. Slower, but more reliable.</span></label></div>
-              <div class="mode"><input type="radio" id="mode-quick" name="mode" value="baseline" /><label for="mode-quick"><strong><i data-icon="exec" data-size="16"></i>Quick</strong><span>One direct answer with no review. Faster, but it may contain mistakes.</span></label></div>
+              <div class="mode"><input type="radio" id="mode-verified" name="mode" value="self_correcting" checked /><label for="mode-verified"><strong><i data-icon="shield" data-size="16"></i>Verified</strong><span>Four agents plan, draft, challenge and correct the answer, then show their objections and what is still uncertain.</span></label></div>
+              <div class="mode"><input type="radio" id="mode-quick" name="mode" value="baseline" /><label for="mode-quick"><strong><i data-icon="exec" data-size="16"></i>Quick</strong><span>One fast model call. No plan, no review, so it may contain mistakes.</span></label></div>
             </div>
           </fieldset>
           <div class="run-row">

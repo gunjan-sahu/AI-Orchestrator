@@ -40,6 +40,7 @@ class Task(Base):
     issues_fixed: Mapped[int] = mapped_column(Integer, default=0)
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
     provider: Mapped[str] = mapped_column(String(20))
+    trace: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)  # agent messages + final report
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     user: Mapped[User] = relationship(back_populates="tasks")
